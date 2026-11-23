@@ -32,7 +32,6 @@ private final class PeakTimeModel: ObservableObject {
         guard let value = ProcessInfo.processInfo.environment["PEAKTIME_SIMULATE"] else { return nil }
         return ISO8601DateFormatter().date(from: value)
     }()
-    private var timer: Timer?
 
     /// Para probar sin esperar: PEAKTIME_SIMULATE=2026-11-22T17:29:00Z open dist/peaktime.app
     private var simulatedNow: Date {
@@ -57,11 +56,7 @@ private final class PeakTimeModel: ObservableObject {
         status = PeakTimeCalculator.status(at: start)
 
         refresh()
-        // 1 s para que la cuenta atrás y el borde de la barra se muevan de verdad.
-        // Las notificaciones tienen dedup por clave, así que no se repiten.
-        timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
-            self?.refresh()
-        }
+        // El AppDelegate impulsa el refresco cada segundo; aquí solo se inicializa el estado.
         // Si el sistema cambia de huso (viaje o ajuste automático), repintamos al instante.
         NotificationCenter.default.addObserver(
             self,
@@ -72,7 +67,6 @@ private final class PeakTimeModel: ObservableObject {
     }
 
     deinit {
-        timer?.invalidate()
         NotificationCenter.default.removeObserver(self)
     }
 
@@ -178,11 +172,11 @@ private final class PeakTimeModel: ObservableObject {
     }
 }
 
-// MARK: - Interfaz
+// MARK: - Interfaz (AppKit puro)
 
-/// La barra se dibuja como NSView nativa: dentro de un menú, las vistas SwiftUI
-/// basadas en `Color` + `clipShape` no siempre se dibujan. Aquí el tamaño es
-/// intrínseco y el dibujo es explícito, así que siempre se ve.
+/// La barra se dibuja como NSView nativa dentro de un NSMenuItem. SwiftUI descarta
+/// las vistas personalizadas en el menú de MenuBarExtra; AppKit respeta el `view`
+/// del item y su frame, así que aquí siempre se ve.
 private final class TimelineNSView: NSView {
     var segments: [TimelineSegment] = [] {
         didSet { setNeedsDisplay(bounds) }
@@ -206,6 +200,8 @@ private final class TimelineNSView: NSView {
             width: barWidth,
             height: barHeight
         )
+
+        NSGraphicsContext.saveGraphicsState()
         NSBezierPath(roundedRect: rect, xRadius: barHeight / 2, yRadius: barHeight / 2).addClip()
 
         var x = rect.minX
@@ -217,42 +213,94 @@ private final class TimelineNSView: NSView {
             NSBezierPath(rect: slice).fill()
             x += w
         }
-    }
-}
-
-private struct TimelineBar: NSViewRepresentable {
-    let segments: [TimelineSegment]
-
-    func makeNSView(context: Context) -> TimelineNSView {
-        let view = TimelineNSView()
-        view.segments = segments
-        return view
-    }
-
-    func updateNSView(_ nsView: TimelineNSView, context: Context) {
-        nsView.segments = segments
+        NSGraphicsContext.restoreGraphicsState()
     }
 }
 
 @main
-struct PeakTimeApp: App {
-    @StateObject private var model = PeakTimeModel()
+final class PeakTimeAppDelegate: NSObject, NSApplicationDelegate {
+    private let model = PeakTimeModel()
+    private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
 
-    var body: some Scene {
-        MenuBarExtra {
-            Text(model.countdownLeadText)
-                .font(.headline)
-                .monospacedDigit()
-            TimelineBar(segments: model.timelineSegments)
-            Text(model.nextStartText)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            Divider()
-            Button("Salir") {
-                NSApplication.shared.terminate(nil)
-            }
-        } label: {
-            Label(model.titleText, systemImage: model.iconName)
+    private let countdownItem = NSMenuItem()
+    private let startItem = NSMenuItem()
+    private let barView = TimelineNSView()
+    private var uiTimer: Timer?
+
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        let menu = NSMenu()
+        menu.autoenablesItems = false
+
+        countdownItem.isEnabled = false
+        startItem.isEnabled = false
+
+        let barItem = NSMenuItem()
+        barItem.isEnabled = false
+        barView.frame = NSRect(x: 0, y: 0, width: 240, height: 16)
+        barItem.view = barView
+
+        menu.addItem(countdownItem)
+        menu.addItem(barItem)
+        menu.addItem(startItem)
+        menu.addItem(NSMenuItem.separator())
+
+        let quit = NSMenuItem(title: "Salir", action: #selector(quitApp), keyEquivalent: "q")
+        quit.target = self
+        menu.addItem(quit)
+
+        statusItem.menu = menu
+
+        updateUI()
+        uiTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
+            self?.tick()
         }
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(timeZoneChanged),
+            name: .NSSystemTimeZoneDidChange,
+            object: nil
+        )
+    }
+
+    deinit {
+        uiTimer?.invalidate()
+        NotificationCenter.default.removeObserver(self)
+    }
+
+    @objc private func timeZoneChanged() {
+        tick()
+    }
+
+    @objc private func quitApp() {
+        NSApplication.shared.terminate(nil)
+    }
+
+    private func tick() {
+        model.refresh()
+        updateUI()
+    }
+
+    private func updateUI() {
+        let button = statusItem.button
+        let image = NSImage(systemSymbolName: model.iconName, accessibilityDescription: nil)
+        image?.size = NSSize(width: 16, height: 16)
+        button?.image = image
+        button?.title = " " + model.titleText
+
+        countdownItem.attributedTitle = NSAttributedString(
+            string: model.countdownLeadText,
+            attributes: [
+                .font: NSFont.boldSystemFont(ofSize: 13),
+                .foregroundColor: NSColor.labelColor
+            ]
+        )
+        barView.segments = model.timelineSegments
+        startItem.attributedTitle = NSAttributedString(
+            string: model.nextStartText,
+            attributes: [
+                .font: NSFont.systemFont(ofSize: 11),
+                .foregroundColor: NSColor.secondaryLabelColor
+            ]
+        )
     }
 }
