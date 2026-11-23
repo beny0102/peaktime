@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 import UserNotifications
 import OSLog
 import PeakTimeCore
@@ -106,24 +107,10 @@ private final class PeakTimeModel: ObservableObject {
         PeakTimeCalculator.timelineSegments(at: now)
     }
 
-    var detailLine: String {
-        if status.isChineseHoliday {
-            return "Festivo chino: todo el día a mitad de precio"
-        }
-        return status.zone == .peak
-            ? "Pagas el doble en la API de DeepSeek"
-            : "API de DeepSeek a mitad de precio"
-    }
-
-    var nextChangeText: String {
+    /// Hora local en que empieza el siguiente tramo de precio.
+    var nextStartText: String {
         guard let change = status.nextChange else { return "—" }
-        let destination = status.nextZone?.rawValue ?? "?"
-        return "\(PeakTimeCalculator.localFull(change)) → \(destination)"
-    }
-
-    var nextPeakText: String {
-        guard let peak = PeakTimeCalculator.nextPeakStart(after: now) else { return "—" }
-        return PeakTimeCalculator.localFull(peak)
+        return "Empieza: \(PeakTimeCalculator.localFull(change))"
     }
 
     var peakEndText: String {
@@ -131,16 +118,6 @@ private final class PeakTimeModel: ObservableObject {
             return "—"
         }
         return PeakTimeCalculator.localTime(end)
-    }
-
-    /// Franjas dobles en la hora local de la Mac. Se derivan del próximo pico real,
-    /// así que respetan el DST vigente y el huso del usuario sin tablas hardcodeadas.
-    var localWindowsText: String {
-        let zoneName = TimeZone.autoupdatingCurrent.abbreviation() ?? "hora local"
-        guard let windows = PeakTimeCalculator.localPeakWindows(after: now) else {
-            return "Dobles: 01:00–04:00 y 06:00–10:00 UTC (lun–vie)"
-        }
-        return "Dobles (\(zoneName)): \(windows.first) y \(windows.second)"
     }
 
     // MARK: Motor de avisos
@@ -203,59 +180,57 @@ private final class PeakTimeModel: ObservableObject {
 
 // MARK: - Interfaz
 
-private extension PriceZone {
-    var timelineColor: Color {
-        switch self {
-        case .cheap: return .green
-        case .peak: return .orange
+/// La barra se dibuja como NSView nativa: dentro de un menú, las vistas SwiftUI
+/// basadas en `Color` + `clipShape` no siempre se dibujan. Aquí el tamaño es
+/// intrínseco y el dibujo es explícito, así que siempre se ve.
+private final class TimelineNSView: NSView {
+    var segments: [TimelineSegment] = [] {
+        didSet { setNeedsDisplay(bounds) }
+    }
+
+    private let barWidth: CGFloat = 240
+    private let barHeight: CGFloat = 12
+
+    override var intrinsicContentSize: NSSize {
+        NSSize(width: barWidth, height: barHeight + 4)
+    }
+
+    override func draw(_ dirtyRect: NSRect) {
+        super.draw(dirtyRect)
+        let total = segments.reduce(0) { $0 + $1.duration }
+        guard total > 0 else { return }
+
+        let rect = NSRect(
+            x: (bounds.width - barWidth) / 2,
+            y: (bounds.height - barHeight) / 2,
+            width: barWidth,
+            height: barHeight
+        )
+        NSBezierPath(roundedRect: rect, xRadius: barHeight / 2, yRadius: barHeight / 2).addClip()
+
+        var x = rect.minX
+        for segment in segments {
+            let w = rect.width * CGFloat(segment.duration / total)
+            let slice = NSRect(x: x, y: rect.minY, width: w, height: rect.height)
+            let color: NSColor = segment.zone == .peak ? .systemOrange : .systemGreen
+            color.setFill()
+            NSBezierPath(rect: slice).fill()
+            x += w
         }
     }
 }
 
-private struct TimelineLegend: View {
-    let color: Color
-    let text: String
-
-    var body: some View {
-        HStack(spacing: 4) {
-            Circle().fill(color).frame(width: 6, height: 6)
-            Text(text)
-        }
-    }
-}
-
-/// Una sola línea con el precio actual y el venidero. Cada bloque es proporcional
-/// a su duración dentro de la ventana de 8 h que empieza en "ahora".
-private struct TimelineBar: View {
+private struct TimelineBar: NSViewRepresentable {
     let segments: [TimelineSegment]
-    private let width: CGFloat = 220
-    private let height: CGFloat = 10
 
-    private var totalDuration: TimeInterval {
-        segments.reduce(0) { $0 + $1.duration }
+    func makeNSView(context: Context) -> TimelineNSView {
+        let view = TimelineNSView()
+        view.segments = segments
+        return view
     }
 
-    var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 0) {
-                ForEach(Array(segments.enumerated()), id: \.offset) { _, segment in
-                    segment.zone.timelineColor
-                        .frame(width: totalDuration > 0
-                               ? width * CGFloat(segment.duration / totalDuration)
-                               : 0)
-                }
-            }
-            .frame(width: width, height: height, alignment: .leading)
-            .clipShape(Capsule())
-
-            HStack(spacing: 12) {
-                TimelineLegend(color: .green, text: "Mitad de precio")
-                TimelineLegend(color: .orange, text: "Doble")
-            }
-            .font(.caption2)
-            .foregroundStyle(.secondary)
-        }
-        .animation(.linear(duration: 0.5), value: segments)
+    func updateNSView(_ nsView: TimelineNSView, context: Context) {
+        nsView.segments = segments
     }
 }
 
@@ -265,27 +240,12 @@ struct PeakTimeApp: App {
 
     var body: some Scene {
         MenuBarExtra {
-            Text(model.status.zone == .peak ? "⚠️ Precio doble" : "💰 Mitad de precio")
-                .font(.headline)
-            Text(model.detailLine)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            if model.status.isChineseHoliday {
-                Text("Festivo chino")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-            }
             Text(model.countdownLeadText)
                 .font(.headline)
                 .monospacedDigit()
-                .padding(.top, 2)
             TimelineBar(segments: model.timelineSegments)
-            Divider()
-            Text("Próximo cambio: \(model.nextChangeText)")
-            Text("Siguiente doble: \(model.nextPeakText)")
-            Divider()
-            Text(model.localWindowsText)
-                .font(.caption2)
+            Text(model.nextStartText)
+                .font(.caption)
                 .foregroundStyle(.secondary)
             Divider()
             Button("Salir") {

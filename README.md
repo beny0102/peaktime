@@ -28,8 +28,8 @@ cp -R dist/peaktime.app /Applications/   # instalar (opcional)
 ## Comportamiento
 
 - La barra superior muestra `Barato · 3h45m` o `Doble · 1h20m` (tiempo hasta el próximo cambio).
-- El menú abre con una cuenta atrás protagonista (`Faltan 1h 28m para precio doble`) y una **línea de tiempo** de 8 h desde ahora: 🟢 verde = mitad de precio, 🟠 naranja = precio doble. Si el próximo pico está a más de 8 h, la línea sale toda verde; a medida que se acerca, el verde se acorta y el naranja crece. Al entrar en pico ocurre al revés. El ancho de cada bloque es proporcional a su duración real.
-- Debajo siguen el próximo cambio y las franjas dobles **en el huso horario de la Mac** (calculadas desde el próximo pico real, respetando el DST vigente), además de si el día es festivo chino.
+- El menú es intencionalmente mínimo: **cuenta atrás** (`Faltan 1h 28m para precio doble`), **barra horizontal** de 8 h desde ahora (🟢 verde = mitad de precio, 🟠 naranja = precio doble), **hora local en que empieza el siguiente tramo** (`Empieza: lun 23 nov 17:00`) y **Salir**. Nada más.
+- La barra es una `NSView` nativa dibujada con `NSBezierPath` (ancho fijo de 240 px, extremos redondeados); las vistas SwiftUI basadas en `Color` no se dibujaban de forma fiable dentro de un menú. El ancho de cada bloque es proporcional a su duración real: si el próximo pico está a más de 8 h sale toda verde; al acercarse el verde se acorta y el naranja crece (y al revés durante el pico).
 - Cada 1 s se recalcula la cuenta atrás y la línea de tiempo. Avisos (una vez por transición, con dedup en `UserDefaults`):
   - `⏰ DeepSeek sube en 15 min`
   - `⚠️ Precio doble en DeepSeek`
