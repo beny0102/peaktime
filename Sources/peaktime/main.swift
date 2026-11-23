@@ -222,6 +222,42 @@ private final class TimelineNSView: NSView {
     }
 }
 
+/// Contenedor con padding interno: NSMenuItem reubica la vista que le das, así que
+/// poner el margen en el `frame.x` del NSTextField no sirve. Aquí el texto va
+/// dentro de este NSView y conserva su x aunque el menú mueva el contenedor.
+private final class PaddedLabelView: NSView {
+    private let label = NSTextField(labelWithString: "")
+    private let inset: CGFloat = 20
+
+    init(height: CGFloat, font: NSFont, color: NSColor) {
+        super.init(frame: NSRect(x: 0, y: 0, width: 260, height: height))
+        label.isBezeled = false
+        label.drawsBackground = false
+        label.isEditable = false
+        label.isSelectable = false
+        label.font = font
+        label.textColor = color
+        label.frame = NSRect(x: inset, y: 0, width: 260 - 2 * inset, height: height)
+        addSubview(label)
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) no usado")
+    }
+
+    var text: String {
+        get { label.stringValue }
+        set {
+            label.stringValue = newValue
+            label.setNeedsDisplay()
+        }
+    }
+
+    override var intrinsicContentSize: NSSize {
+        NSSize(width: 260, height: frame.height)
+    }
+}
+
 final class PeakTimeAppDelegate: NSObject, NSApplicationDelegate {
     private let model = PeakTimeModel()
     private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
@@ -230,27 +266,16 @@ final class PeakTimeAppDelegate: NSObject, NSApplicationDelegate {
     private let startItem = NSMenuItem()
     private let barView = TimelineNSView()
 
-    private let countdownLabel: NSTextField = {
-        let label = NSTextField(labelWithString: "")
-        label.isBezeled = false
-        label.drawsBackground = false
-        label.isEditable = false
-        label.isSelectable = false
-        label.font = .systemFont(ofSize: 12, weight: .semibold)
-        label.textColor = .labelColor
-        return label
-    }()
-
-    private let startLabel: NSTextField = {
-        let label = NSTextField(labelWithString: "")
-        label.isBezeled = false
-        label.drawsBackground = false
-        label.isEditable = false
-        label.isSelectable = false
-        label.font = .systemFont(ofSize: 11)
-        label.textColor = .secondaryLabelColor
-        return label
-    }()
+    private let countdownBox = PaddedLabelView(
+        height: 18,
+        font: .systemFont(ofSize: 12, weight: .semibold),
+        color: .labelColor
+    )
+    private let startBox = PaddedLabelView(
+        height: 16,
+        font: .systemFont(ofSize: 11),
+        color: .secondaryLabelColor
+    )
 
     private var uiTimer: Timer?
 
@@ -260,12 +285,10 @@ final class PeakTimeAppDelegate: NSObject, NSApplicationDelegate {
         menu.autoenablesItems = false
 
         countdownItem.isEnabled = false
-        countdownLabel.frame = NSRect(x: 20, y: 0, width: 220, height: 18)
-        countdownItem.view = countdownLabel
+        countdownItem.view = countdownBox
 
         startItem.isEnabled = false
-        startLabel.frame = NSRect(x: 20, y: 0, width: 220, height: 16)
-        startItem.view = startLabel
+        startItem.view = startBox
 
         let barItem = NSMenuItem()
         barItem.isEnabled = false
@@ -324,11 +347,9 @@ final class PeakTimeAppDelegate: NSObject, NSApplicationDelegate {
         // El usuario quiere solo el icono en la barra superior; el texto vive en el menú.
         button?.title = ""
 
-        countdownLabel.stringValue = model.countdownLeadText
-        countdownLabel.setNeedsDisplay()
+        countdownBox.text = model.countdownLeadText
         barView.segments = model.timelineSegments
-        startLabel.stringValue = model.nextStartText
-        startLabel.setNeedsDisplay()
+        startBox.text = model.nextStartText
     }
 }
 
