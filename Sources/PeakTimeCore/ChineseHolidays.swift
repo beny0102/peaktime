@@ -1,10 +1,10 @@
 import Foundation
 
-/// Días festivos nacionales de China (días libres), en fecha de Pekín.
-/// DeepSeek los trata como off-peak todo el día, aunque caigan en franja doble.
-/// Fuente: timeanddate.com/holidays/china/2026 y /2027 (la fuente marca 2027 como preliminar).
-/// Los "fines de semana laborables" ajustados NO se incluyen: ya son off-peak por ser fin de semana.
-/// ACTUALIZAR ANUALMENTE cuando se publique el calendario del año siguiente.
+/// Chinese national public holidays (days off), by Beijing calendar date.
+/// DeepSeek treats them as off-peak all day, even if they fall in a peak window.
+/// Source: timeanddate.com/holidays/china/2026 and /2027 (2027 is marked preliminary).
+/// Adjusted "make-up working weekends" are NOT included: they are already off-peak because they are weekends.
+/// UPDATE ANNUALLY when the next year's calendar is published.
 public enum ChineseHolidays {
     private static let byYear: [Int: [Int: [Int]]] = [
         2026: [

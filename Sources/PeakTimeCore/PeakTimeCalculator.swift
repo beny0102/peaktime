@@ -12,7 +12,7 @@ public struct PriceStatus: Sendable {
     public let isChineseHoliday: Bool
 }
 
-/// Un tramo de la línea de tiempo del menú. Su ancho en pantalla es proporcional a `duration`.
+/// A segment of the menu timeline. Its on-screen width is proportional to `duration`.
 public struct TimelineSegment: Sendable, Equatable {
     public let zone: PriceZone
     public let duration: TimeInterval
@@ -23,16 +23,16 @@ public struct TimelineSegment: Sendable, Equatable {
     }
 }
 
-/// Reglas de precio de la API de DeepSeek.
+/// Pricing rules for the DeepSeek API.
 ///
-/// Documentación oficial: peak = 01:00–04:00 y 06:00–10:00 UTC, lunes a viernes,
-/// excluyendo festivos chinos. Todo lo demás (fines de semana y festivos chinos) es off-peak.
+/// Official docs: peak = 01:00–04:00 and 06:00–10:00 UTC, Monday to Friday,
+/// excluding Chinese public holidays. Everything else (weekends and Chinese holidays) is off-peak.
 ///
-/// La decisión de precio se evalúa SIEMPRE en UTC, porque esa es la regla de DeepSeek
-/// y no depende de dónde esté el usuario. Solo las funciones de presentación convierten
-/// al huso horario de la Mac (`autoupdatingCurrent`), así que los horarios mostrados se
-/// adaptan automáticamente al país del usuario y a los cambios de horario/DST.
-/// Pekín se usa aparte porque los festivos chinos se definen en fecha de Beijing.
+/// Pricing is always evaluated in UTC, because that is DeepSeek's rule
+/// and does not depend on the user's location. Only the presentation helpers convert
+/// to the Mac's time zone (`autoupdatingCurrent`), so displayed times
+/// adapt automatically to the user's country and to daylight saving changes.
+/// Beijing is used separately because Chinese holidays are defined by Beijing calendar dates.
 public enum PeakTimeCalculator {
     private static let utc = TimeZone(secondsFromGMT: 0)!
     private static let beijing = TimeZone(identifier: "Asia/Shanghai")!
@@ -51,12 +51,12 @@ public enum PeakTimeCalculator {
         return f
     }
 
-    // MARK: - Regla base
+    // MARK: - Base rule
 
     private static func isPeakUTC(_ date: Date) -> Bool {
         let components = calendar(utc).dateComponents([.weekday, .hour], from: date)
         guard let weekday = components.weekday, let hour = components.hour else { return false }
-        // weekday: 1 = domingo ... 7 = sábado
+        // weekday: 1 = Sunday ... 7 = Saturday
         guard (2...6).contains(weekday) else { return false }
         return (1..<4).contains(hour) || (6..<10).contains(hour)
     }
@@ -85,10 +85,10 @@ public enum PeakTimeCalculator {
         )
     }
 
-    // MARK: - Transiciones
+    // MARK: - Transitions
 
-    /// Próximos cambios de zona. Se revisan los límites UTC de las franjas (01, 04, 06, 10)
-    /// y la medianoche de Pekín (16:00 UTC), que es donde un festivo puede cambiar el precio.
+    /// Upcoming zone changes. Checks the UTC boundaries of the peak windows (01, 04, 06, 10)
+    /// and Beijing midnight (16:00 UTC), where a holiday can change the price.
     public static func transitions(after date: Date, days: Int = 14) -> [(date: Date, zone: PriceZone)] {
         let cal = calendar(utc)
         let comps = cal.dateComponents([.year, .month, .day], from: date)
@@ -119,10 +119,10 @@ public enum PeakTimeCalculator {
         transitions(after: date).first(where: { $0.zone == .peak })?.date
     }
 
-    /// Línea de tiempo para el menú: tramos de precio desde `date` hasta `date + horizon`.
-    /// La ventana se ancla en "ahora", así que el verde se acorta y el naranja crece a medida
-    /// que se acerca un pico (y al revés cuando ya estamos en pico). Los tramos consecutivos
-    /// del mismo color se fusionan. La suma de duraciones es siempre `horizon`.
+    /// Timeline for the menu: pricing periods from `date` to `date + horizon`.
+    /// The window is anchored at "now", so green shrinks and orange grows as
+    /// a peak approaches (and the reverse during a peak). Consecutive segments
+    /// of the same color are merged. Durations always add up to `horizon`.
     public static func timelineSegments(
         at date: Date,
         horizon: TimeInterval = 8 * 3600
@@ -152,7 +152,7 @@ public enum PeakTimeCalculator {
         return segments
     }
 
-    /// Texto de cuenta atrás usado tanto en la barra superior como en el menú.
+    /// Countdown text used both in the menu bar and in the menu.
     public static func countdownText(from now: Date, to date: Date) -> String {
         let seconds = max(0, Int(date.timeIntervalSince(now)))
         let hours = seconds / 3600
@@ -160,8 +160,8 @@ public enum PeakTimeCalculator {
         return hours > 0 ? "\(hours)h \(minutes)m" : "\(minutes)m"
     }
 
-    /// Franjas dobles en hora local, derivadas del próximo pico real (no de una tabla fija).
-    /// Las franjas duran 3 h, empiezan 5 h después y la segunda termina a las 9 h del inicio.
+    /// Peak windows in local time, derived from the real next peak (not a fixed table).
+    /// Windows last 3 h, start 5 h later, and the second ends 9 h after the first starts.
     public static func localPeakWindows(
         after date: Date,
         in timeZone: TimeZone = .autoupdatingCurrent
@@ -172,16 +172,16 @@ public enum PeakTimeCalculator {
                 second: "\(fmt(5 * 3600))–\(fmt(9 * 3600))")
     }
 
-    // MARK: - Presentación en el huso horario de la Mac
+    // MARK: - Presentation in the Mac's time zone
 
-    /// Por defecto usa el huso actual del sistema; `autoupdatingCurrent` también refleja
-    /// cambios de zona mientras la app sigue abierta. El parámetro permite inyectar
-    /// una zona concreta en los tests.
+    /// By default it uses the current system zone; `autoupdatingCurrent` also reflects
+    /// zone changes while the app is running. The parameter allows injecting
+    /// a specific zone in tests.
     public static func localTime(_ date: Date, in timeZone: TimeZone = .autoupdatingCurrent) -> String {
         formatter("HH:mm", timeZone: timeZone).string(from: date)
     }
 
-    /// Fecha completa en el idioma del sistema. El `locale` es inyectable para los tests.
+    /// Full date in the system language. `locale` is injectable for tests.
     public static func localFull(
         _ date: Date,
         in timeZone: TimeZone = .autoupdatingCurrent,

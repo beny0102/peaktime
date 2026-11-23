@@ -4,12 +4,12 @@ import UserNotifications
 import OSLog
 import PeakTimeCore
 
-private let notificationLog = Logger(subsystem: "com.local.peaktime", category: "avisos")
+private let notificationLog = Logger(subsystem: "com.local.peaktime", category: "notifications")
 private let appLog = Logger(subsystem: "com.local.peaktime", category: "app")
 
-/// Cadenas del catálogo (Localizable.xcstrings). Elegimos el `.lproj` según el
-/// idioma del sistema para que no dependa del `CFBundleDevelopmentRegion` del
-/// bundle de recursos; si el usuario cambia de idioma, se aplica al relanzar.
+/// Strings from the catalog (Localizable.xcstrings). Pick the `.lproj` based on the
+/// system language so it does not depend on the resource bundle's
+/// `CFBundleDevelopmentRegion`; a language change takes effect after relaunch.
 private enum L10n {
     private static var bundle: Bundle {
         let code = Locale.current.language.languageCode?.identifier ?? "en"
@@ -30,7 +30,7 @@ private enum L10n {
     }
 }
 
-// MARK: - Notificaciones visibles con la app en primer plano
+// MARK: - Notifications shown while the app is in the foreground
 
 private final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
     func userNotificationCenter(
@@ -42,14 +42,14 @@ private final class NotificationDelegate: NSObject, UNUserNotificationCenterDele
     }
 }
 
-// MARK: - Modelo: estado en vivo, temporizador y avisos
+// MARK: - Model: live state, timer, and notifications
 
 private final class PeakTimeModel: ObservableObject {
     @Published private(set) var now: Date = Date()
     @Published private(set) var status: PriceStatus = PeakTimeCalculator.status(at: Date())
 
     private let notificationCenter = UNUserNotificationCenter.current()
-    // `delegate` es weak: hay que conservar una referencia fuerte o se desasigna al salir de init().
+    // `delegate` is weak: keep a strong reference or it is deallocated when init() returns.
     private let notificationDelegate = NotificationDelegate()
     private let realStart = Date()
     private let simulationStart: Date? = {
@@ -57,7 +57,7 @@ private final class PeakTimeModel: ObservableObject {
         return ISO8601DateFormatter().date(from: value)
     }()
 
-    /// Para probar sin esperar: PEAKTIME_SIMULATE=2026-11-22T17:29:00Z open dist/peaktime.app
+    /// For a quick test: PEAKTIME_SIMULATE=2026-11-22T17:29:00Z open dist/peaktime.app
     private var simulatedNow: Date {
         if let simulationStart {
             return simulationStart.addingTimeInterval(Date().timeIntervalSince(realStart))
@@ -74,14 +74,14 @@ private final class PeakTimeModel: ObservableObject {
         UNUserNotificationCenter.current().delegate = notificationDelegate
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in }
 
-        // Evita un aviso espurio al arrancar si el reloj va simulado.
+        // Avoid a spurious notification on launch when the clock is simulated.
         let start = simulatedNow
         now = start
         status = PeakTimeCalculator.status(at: start)
 
         refresh()
-        // El AppDelegate impulsa el refresco cada segundo; aquí solo se inicializa el estado.
-        // Si el sistema cambia de huso (viaje o ajuste automático), repintamos al instante.
+        // The AppDelegate drives the one-second refresh; only initialize state here.
+        // If the system time zone changes (travel or automatic adjustment), repaint immediately.
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(systemTimeZoneDidChange),
@@ -98,11 +98,11 @@ private final class PeakTimeModel: ObservableObject {
         refresh()
     }
 
-    // MARK: Textos de la barra y del menú
+    // MARK: Menu bar and menu text
 
-    /// Icono elegido por el usuario en la lámina comparativa.
-    /// Se renderiza como template nativo: macOS lo pinta en blanco y negro,
-    /// igual que los demás iconos de la barra de menús.
+    /// Icon selected by the user from the comparison sheet.
+    /// Rendered as a native template: macOS paints it in black and white,
+    /// like the other menu bar icons.
     var iconName: String {
         status.zone == .peak
             ? "chart.line.uptrend.xyaxis.circle.fill"
@@ -114,7 +114,7 @@ private final class PeakTimeModel: ObservableObject {
         return PeakTimeCalculator.countdownText(from: now, to: change)
     }
 
-    /// Fila protagonista del menú: cuenta atrás corta hacia el siguiente cambio.
+    /// Primary menu row: short countdown to the next change.
     var countdownLeadText: String {
         guard status.nextChange != nil else { return L10n.string("Sin cambios próximos") }
         let destination = status.nextZone == .peak
@@ -123,12 +123,12 @@ private final class PeakTimeModel: ObservableObject {
         return L10n.format("%@ para %@", countdownText, destination)
     }
 
-    /// Segmentos de la línea de tiempo, derivados del estado en vivo.
+    /// Timeline segments derived from the live state.
     var timelineSegments: [TimelineSegment] {
         PeakTimeCalculator.timelineSegments(at: now)
     }
 
-    /// Hora local en que empieza el siguiente tramo de precio.
+    /// Local time when the next pricing period starts.
     var nextStartText: String {
         guard let change = status.nextChange else { return "—" }
         return L10n.format("Empieza: %@", PeakTimeCalculator.localFull(change))
@@ -141,7 +141,7 @@ private final class PeakTimeModel: ObservableObject {
         return PeakTimeCalculator.localTime(end)
     }
 
-    // MARK: Motor de avisos
+    // MARK: Notification engine
 
     func refresh() {
         let current = simulatedNow
@@ -197,29 +197,29 @@ private final class PeakTimeModel: ObservableObject {
             content: content,
             trigger: nil
         )
-        notificationLog.info("Aviso enviado: \(title, privacy: .public) — \(body, privacy: .public)")
+        notificationLog.info("Notification sent: \(title, privacy: .public) — \(body, privacy: .public)")
         notificationCenter.add(request)
     }
 }
 
-// MARK: - Interfaz (AppKit puro)
+// MARK: - UI (pure AppKit)
 
-/// Métricas del menú. HIG de Apple: alinear los elementos por el borde leading,
-/// agrupar los relacionados con un separador y usar el sistema de espaciado
-/// estándar (múltiplos de 8 pt). Aquí 4 pt a cada lado de cada contenido dan
-/// 8 pt entre componentes, con el mismo inset horizontal de 20 pt en todos.
+/// Menu metrics. Apple HIG: align elements along the leading edge,
+/// group related items with a separator, and use the standard spacing
+/// system (multiples of 8 pt). Here 4 pt on each side of every item gives
+/// 8 pt between components, with the same 20 pt horizontal inset everywhere.
 private enum MenuLayout {
     static let width: CGFloat = 260
     static let horizontalInset: CGFloat = 20
     static let verticalPadding: CGFloat = 4
     static let countdownRowHeight: CGFloat = 26   // 18 de texto + 4 + 4
-    static let barRowHeight: CGFloat = 28         // 20 de barra + 4 + 4
+    static let barRowHeight: CGFloat = 28         // 20 for the bar + 4 + 4
     static let startRowHeight: CGFloat = 24       // 16 de texto + 4 + 4
 }
 
-/// La barra se dibuja como NSView nativa dentro de un NSMenuItem. SwiftUI descarta
-/// las vistas personalizadas en el menú de MenuBarExtra; AppKit respeta el `view`
-/// del item y su frame, así que aquí siempre se ve.
+/// The bar is drawn as a native NSView inside an NSMenuItem. SwiftUI drops
+/// custom views in a MenuBarExtra menu; AppKit respects the item's `view`
+/// and its frame, so it is always visible here.
 private final class TimelineNSView: NSView {
     var segments: [TimelineSegment] = [] {
         didSet { setNeedsDisplay(bounds) }
@@ -245,7 +245,7 @@ private final class TimelineNSView: NSView {
         )
         let capsule = NSBezierPath(roundedRect: rect, xRadius: barHeight / 2, yRadius: barHeight / 2)
 
-        // Pista tenue + borde: dan cuerpo a la barra sin añadir elementos al menú.
+        // Faint track + border give the bar body without adding menu items.
         NSColor.quaternaryLabelColor.withAlphaComponent(0.35).setFill()
         capsule.fill()
         capsule.lineWidth = 1
@@ -268,10 +268,10 @@ private final class TimelineNSView: NSView {
     }
 }
 
-/// Contenedor con padding interno: NSMenuItem reubica la vista que le das, así que
-/// poner el margen en el `frame.x` del NSTextField no sirve. Aquí el texto va
-/// dentro de este NSView y conserva su x aunque el menú mueva el contenedor.
-/// El `padding` vertical centra el texto en la fila y deja 8 pt entre componentes.
+/// Container with internal padding: NSMenuItem repositions the view it is given, so
+/// setting the margin on the NSTextField's `frame.x` does not work. The text goes
+/// inside this NSView and keeps its x even when the menu moves the container.
+/// Vertical `padding` centers the text in the row and leaves 8 pt between components.
 private final class PaddedLabelView: NSView {
     private let label = NSTextField(labelWithString: "")
     private let inset: CGFloat = MenuLayout.horizontalInset
@@ -333,7 +333,7 @@ final class PeakTimeAppDelegate: NSObject, NSApplicationDelegate {
     private var uiTimer: Timer?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        appLog.info("AppKit delegate arrancó")
+        appLog.info("AppKit delegate started")
         let menu = NSMenu()
         menu.autoenablesItems = false
 
@@ -360,8 +360,8 @@ final class PeakTimeAppDelegate: NSObject, NSApplicationDelegate {
         statusItem.menu = menu
 
         updateUI()
-        // `.common` incluye `.eventTracking`: sin esto el timer se congela mientras
-        // el menú está abierto, porque AppKit cambia el modo del run loop.
+        // `.common` includes `.eventTracking`: without it the timer freezes while
+        // the menu is open, because AppKit changes the run loop mode.
         uiTimer = Timer(timeInterval: 1, repeats: true) { [weak self] _ in
             self?.tick()
         }
@@ -394,14 +394,14 @@ final class PeakTimeAppDelegate: NSObject, NSApplicationDelegate {
 
     private func updateUI() {
         let button = statusItem.button
-        // Símbolo nativo como template: macOS aplica el aspecto monocromático
-        // del sistema (negro en claro, blanco en oscuro) y escala sin recortar.
+        // Native template symbol: macOS applies the monochrome appearance
+        // of the system (black in light, white in dark) and scales without clipping.
         let config = NSImage.SymbolConfiguration(pointSize: 16, weight: .semibold)
         let image = NSImage(systemSymbolName: model.iconName, accessibilityDescription: nil)?
             .withSymbolConfiguration(config)
         image?.isTemplate = true
         button?.image = image
-        // El usuario quiere solo el icono en la barra superior; el texto vive en el menú.
+        // The user wants only the icon in the menu bar; the text lives in the menu.
         button?.title = ""
 
         countdownBox.text = model.countdownLeadText
@@ -410,8 +410,8 @@ final class PeakTimeAppDelegate: NSObject, NSApplicationDelegate {
     }
 }
 
-// Arranque explícito: con @main sobre un NSApplicationDelegate y sin nib, AppKit
-// no llega a llamar a applicationDidFinishLaunching. Aquí sí lo hacemos.
+// Explicit startup: with @main on an NSApplicationDelegate and no nib, AppKit
+// never calls applicationDidFinishLaunching. We do it here.
 let application = NSApplication.shared
 let delegate = PeakTimeAppDelegate()
 application.delegate = delegate

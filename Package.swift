@@ -9,7 +9,7 @@ let package = Package(
         .executableTarget(
             name: "peaktime",
             dependencies: ["PeakTimeCore"],
-            // Catálogo de cadenas: la app habla el idioma del sistema (es/en).
+            // String catalog: the app speaks the system language (es/en).
             resources: [.process("Resources")]
         ),
         .testTarget(

@@ -1,4 +1,27 @@
+# Build output
 .build/
 dist/
-.DS_Store
+DerivedData/
+
+# Swift Package Manager
+.swiftpm/
+Package.resolved
+
+# Xcode / workspace artifacts
+*.xcworkspace/
+xcuserdata/
 *.xcuserstate
+*.xcodeproj/
+*.xcscmblueprint
+*.xccheckout
+
+# macOS
+.DS_Store
+*.swp
+*.swo
+*~
+.AppleDouble
+.LSOverride
+
+# Logs and local tooling
+*.log
