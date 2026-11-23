@@ -1,5 +1,7 @@
 # peaktime
 
+[![CI](https://github.com/beny0102/peaktime/actions/workflows/ci.yml/badge.svg)](https://github.com/beny0102/peaktime/actions/workflows/ci.yml)
+
 A macOS menu bar app that tells you when the DeepSeek API enters or leaves **peak hours** (double pricing). Everything is built from the terminal — no Xcode required.
 
 ## Implemented rules
