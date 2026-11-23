@@ -86,11 +86,11 @@ private final class PeakTimeModel: ObservableObject {
         return PeakTimeCalculator.countdownText(from: now, to: change)
     }
 
-    /// Fila protagonista del menú: cuenta atrás hacia el siguiente cambio de precio.
+    /// Fila protagonista del menú: cuenta atrás corta hacia el siguiente cambio.
     var countdownLeadText: String {
         guard status.nextChange != nil else { return "Sin cambios próximos" }
-        let destination = status.nextZone == .peak ? "precio doble" : "mitad de precio"
-        return "Faltan \(countdownText) para \(destination)"
+        let destination = status.nextZone == .peak ? "hora pico" : "descuento"
+        return "\(countdownText) para \(destination)"
     }
 
     /// Segmentos de la línea de tiempo, derivados del estado en vivo.
@@ -179,7 +179,7 @@ private final class TimelineNSView: NSView {
         didSet { setNeedsDisplay(bounds) }
     }
 
-    private let sideInset: CGFloat = 16
+    private let sideInset: CGFloat = 20
     private let barHeight: CGFloat = 10
 
     override var intrinsicContentSize: NSSize {
@@ -236,7 +236,7 @@ final class PeakTimeAppDelegate: NSObject, NSApplicationDelegate {
         label.drawsBackground = false
         label.isEditable = false
         label.isSelectable = false
-        label.font = .boldSystemFont(ofSize: 13)
+        label.font = .systemFont(ofSize: 12, weight: .semibold)
         label.textColor = .labelColor
         return label
     }()
@@ -260,11 +260,11 @@ final class PeakTimeAppDelegate: NSObject, NSApplicationDelegate {
         menu.autoenablesItems = false
 
         countdownItem.isEnabled = false
-        countdownLabel.frame = NSRect(x: 16, y: 0, width: 244, height: 18)
+        countdownLabel.frame = NSRect(x: 20, y: 0, width: 220, height: 18)
         countdownItem.view = countdownLabel
 
         startItem.isEnabled = false
-        startLabel.frame = NSRect(x: 16, y: 0, width: 244, height: 16)
+        startLabel.frame = NSRect(x: 20, y: 0, width: 220, height: 16)
         startItem.view = startLabel
 
         let barItem = NSMenuItem()
