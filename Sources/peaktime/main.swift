@@ -171,6 +171,19 @@ private final class PeakTimeModel: ObservableObject {
 
 // MARK: - Interfaz (AppKit puro)
 
+/// Métricas del menú. HIG de Apple: alinear los elementos por el borde leading,
+/// agrupar los relacionados con un separador y usar el sistema de espaciado
+/// estándar (múltiplos de 8 pt). Aquí 4 pt a cada lado de cada contenido dan
+/// 8 pt entre componentes, con el mismo inset horizontal de 20 pt en todos.
+private enum MenuLayout {
+    static let width: CGFloat = 260
+    static let horizontalInset: CGFloat = 20
+    static let verticalPadding: CGFloat = 4
+    static let countdownRowHeight: CGFloat = 26   // 18 de texto + 4 + 4
+    static let barRowHeight: CGFloat = 28         // 20 de barra + 4 + 4
+    static let startRowHeight: CGFloat = 24       // 16 de texto + 4 + 4
+}
+
 /// La barra se dibuja como NSView nativa dentro de un NSMenuItem. SwiftUI descarta
 /// las vistas personalizadas en el menú de MenuBarExtra; AppKit respeta el `view`
 /// del item y su frame, así que aquí siempre se ve.
@@ -179,11 +192,11 @@ private final class TimelineNSView: NSView {
         didSet { setNeedsDisplay(bounds) }
     }
 
-    private let sideInset: CGFloat = 20
+    private let sideInset: CGFloat = MenuLayout.horizontalInset
     private let barHeight: CGFloat = 10
 
     override var intrinsicContentSize: NSSize {
-        NSSize(width: 260, height: 20)
+        NSSize(width: MenuLayout.width, height: MenuLayout.barRowHeight)
     }
 
     override func draw(_ dirtyRect: NSRect) {
@@ -225,19 +238,26 @@ private final class TimelineNSView: NSView {
 /// Contenedor con padding interno: NSMenuItem reubica la vista que le das, así que
 /// poner el margen en el `frame.x` del NSTextField no sirve. Aquí el texto va
 /// dentro de este NSView y conserva su x aunque el menú mueva el contenedor.
+/// El `padding` vertical centra el texto en la fila y deja 8 pt entre componentes.
 private final class PaddedLabelView: NSView {
     private let label = NSTextField(labelWithString: "")
-    private let inset: CGFloat = 20
+    private let inset: CGFloat = MenuLayout.horizontalInset
+    private let padding: CGFloat = MenuLayout.verticalPadding
 
     init(height: CGFloat, font: NSFont, color: NSColor) {
-        super.init(frame: NSRect(x: 0, y: 0, width: 260, height: height))
+        super.init(frame: NSRect(x: 0, y: 0, width: MenuLayout.width, height: height))
         label.isBezeled = false
         label.drawsBackground = false
         label.isEditable = false
         label.isSelectable = false
         label.font = font
         label.textColor = color
-        label.frame = NSRect(x: inset, y: 0, width: 260 - 2 * inset, height: height)
+        label.frame = NSRect(
+            x: inset,
+            y: padding,
+            width: MenuLayout.width - 2 * inset,
+            height: height - 2 * padding
+        )
         addSubview(label)
     }
 
@@ -249,12 +269,12 @@ private final class PaddedLabelView: NSView {
         get { label.stringValue }
         set {
             label.stringValue = newValue
-            label.setNeedsDisplay()
+            label.needsDisplay = true
         }
     }
 
     override var intrinsicContentSize: NSSize {
-        NSSize(width: 260, height: frame.height)
+        NSSize(width: MenuLayout.width, height: frame.height)
     }
 }
 
@@ -267,12 +287,12 @@ final class PeakTimeAppDelegate: NSObject, NSApplicationDelegate {
     private let barView = TimelineNSView()
 
     private let countdownBox = PaddedLabelView(
-        height: 18,
+        height: MenuLayout.countdownRowHeight,
         font: .systemFont(ofSize: 12, weight: .semibold),
         color: .labelColor
     )
     private let startBox = PaddedLabelView(
-        height: 16,
+        height: MenuLayout.startRowHeight,
         font: .systemFont(ofSize: 11),
         color: .secondaryLabelColor
     )
@@ -292,7 +312,7 @@ final class PeakTimeAppDelegate: NSObject, NSApplicationDelegate {
 
         let barItem = NSMenuItem()
         barItem.isEnabled = false
-        barView.frame = NSRect(x: 0, y: 0, width: 260, height: 20)
+        barView.frame = NSRect(x: 0, y: 0, width: MenuLayout.width, height: MenuLayout.barRowHeight)
         barItem.view = barView
 
         menu.addItem(countdownItem)
