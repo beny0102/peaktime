@@ -2,93 +2,93 @@ import XCTest
 import PeakTimeCore
 
 final class PeakTimeCalculatorTests: XCTestCase {
-    private func tijuana(_ year: Int, _ month: Int, _ day: Int, _ hour: Int, _ minute: Int = 0) -> Date {
+    private func dateIn(_ year: Int, _ month: Int, _ day: Int, _ hour: Int, _ minute: Int = 0) -> Date {
         var cal = Calendar(identifier: .gregorian)
-        cal.timeZone = TimeZone(identifier: "America/Tijuana")!
+        cal.timeZone = TimeZone(identifier: "America/Los_Angeles")!
         return cal.date(from: DateComponents(year: year, month: month, day: day, hour: hour, minute: minute))!
     }
 
-    // MARK: - User's table (winter time, UTC−8)
+    // MARK: - Winter schedule (UTC−8)
 
     func testSaturdayAfternoonIsCheap() {
-        XCTAssertEqual(PeakTimeCalculator.zone(at: tijuana(2026, 11, 21, 17, 15)), .cheap)
+        XCTAssertEqual(PeakTimeCalculator.zone(at: dateIn(2026, 11, 21, 17, 15)), .cheap)
     }
 
     func testSundayBeforePeakIsCheap() {
-        XCTAssertEqual(PeakTimeCalculator.zone(at: tijuana(2026, 11, 22, 16, 30)), .cheap)
+        XCTAssertEqual(PeakTimeCalculator.zone(at: dateIn(2026, 11, 22, 16, 30)), .cheap)
     }
 
     func testSundayPeakStartsAt17() {
-        // Sunday 17:00 Tijuana = Monday 01:00 UTC
-        XCTAssertEqual(PeakTimeCalculator.zone(at: tijuana(2026, 11, 22, 17, 30)), .peak)
+        // Sunday 17:00 local = Monday 01:00 UTC
+        XCTAssertEqual(PeakTimeCalculator.zone(at: dateIn(2026, 11, 22, 17, 30)), .peak)
     }
 
     func testMondayEveningIsPeakAndLateEveningIsCheap() {
-        XCTAssertEqual(PeakTimeCalculator.zone(at: tijuana(2026, 11, 23, 19, 0)), .peak)
-        XCTAssertEqual(PeakTimeCalculator.zone(at: tijuana(2026, 11, 23, 21, 0)), .cheap)
+        XCTAssertEqual(PeakTimeCalculator.zone(at: dateIn(2026, 11, 23, 19, 0)), .peak)
+        XCTAssertEqual(PeakTimeCalculator.zone(at: dateIn(2026, 11, 23, 21, 0)), .cheap)
     }
 
     func testFridayEarlyMorningIsPeakThenCheapAt2AM() {
-        XCTAssertEqual(PeakTimeCalculator.zone(at: tijuana(2026, 11, 20, 1, 0)), .peak)
-        XCTAssertEqual(PeakTimeCalculator.zone(at: tijuana(2026, 11, 20, 3, 0)), .cheap)
+        XCTAssertEqual(PeakTimeCalculator.zone(at: dateIn(2026, 11, 20, 1, 0)), .peak)
+        XCTAssertEqual(PeakTimeCalculator.zone(at: dateIn(2026, 11, 20, 3, 0)), .cheap)
     }
 
     // MARK: - Daylight saving time (UTC−7)
 
     func testSummerWindowShiftsOneHour() {
-        XCTAssertEqual(PeakTimeCalculator.zone(at: tijuana(2026, 7, 20, 17, 30)), .cheap)
-        XCTAssertEqual(PeakTimeCalculator.zone(at: tijuana(2026, 7, 20, 18, 30)), .peak)
+        XCTAssertEqual(PeakTimeCalculator.zone(at: dateIn(2026, 7, 20, 17, 30)), .cheap)
+        XCTAssertEqual(PeakTimeCalculator.zone(at: dateIn(2026, 7, 20, 18, 30)), .peak)
     }
 
     // MARK: - Chinese holidays
 
     func testChineseHolidayOverridesPeak() {
         // 1 Oct 2026 is National Day: in Beijing it is already 2 Oct morning, a holiday.
-        XCTAssertTrue(PeakTimeCalculator.isChineseHoliday(tijuana(2026, 10, 1, 19, 0)))
-        XCTAssertEqual(PeakTimeCalculator.zone(at: tijuana(2026, 10, 1, 19, 0)), .cheap)
+        XCTAssertTrue(PeakTimeCalculator.isChineseHoliday(dateIn(2026, 10, 1, 19, 0)))
+        XCTAssertEqual(PeakTimeCalculator.zone(at: dateIn(2026, 10, 1, 19, 0)), .cheap)
 
         // 17 Feb 2026 is Chinese New Year.
-        XCTAssertEqual(PeakTimeCalculator.zone(at: tijuana(2026, 2, 17, 19, 0)), .cheap)
+        XCTAssertEqual(PeakTimeCalculator.zone(at: dateIn(2026, 2, 17, 19, 0)), .cheap)
     }
 
     func testOrdinaryWeekdayIsNotHoliday() {
-        XCTAssertFalse(PeakTimeCalculator.isChineseHoliday(tijuana(2026, 11, 23, 19, 0)))
+        XCTAssertFalse(PeakTimeCalculator.isChineseHoliday(dateIn(2026, 11, 23, 19, 0)))
     }
 
     func testChineseHoliday2028IsLoaded() {
         // Spring Festival 2028 runs Jan 25-31 in Beijing.
-        XCTAssertTrue(PeakTimeCalculator.isChineseHoliday(tijuana(2028, 1, 26, 19, 0)))
-        XCTAssertEqual(PeakTimeCalculator.zone(at: tijuana(2028, 1, 26, 19, 0)), .cheap)
+        XCTAssertTrue(PeakTimeCalculator.isChineseHoliday(dateIn(2028, 1, 26, 19, 0)))
+        XCTAssertEqual(PeakTimeCalculator.zone(at: dateIn(2028, 1, 26, 19, 0)), .cheap)
 
         // An ordinary weekday in 2028 still follows the UTC peak rule.
-        XCTAssertFalse(PeakTimeCalculator.isChineseHoliday(tijuana(2028, 11, 21, 19, 0)))
+        XCTAssertFalse(PeakTimeCalculator.isChineseHoliday(dateIn(2028, 11, 21, 19, 0)))
     }
 
     // MARK: - Upcoming changes
 
     func testNextTransitionOutOfPeak() {
-        let status = PeakTimeCalculator.status(at: tijuana(2026, 11, 22, 17, 30))
+        let status = PeakTimeCalculator.status(at: dateIn(2026, 11, 22, 17, 30))
         XCTAssertEqual(status.zone, .peak)
         XCTAssertEqual(status.nextZone, .cheap)
-        XCTAssertEqual(status.nextChange, tijuana(2026, 11, 22, 20, 0))
+        XCTAssertEqual(status.nextChange, dateIn(2026, 11, 22, 20, 0))
     }
 
     func testNextTransitionFromCheapWeekend() {
-        let status = PeakTimeCalculator.status(at: tijuana(2026, 11, 21, 10, 0))
+        let status = PeakTimeCalculator.status(at: dateIn(2026, 11, 21, 10, 0))
         XCTAssertEqual(status.zone, .cheap)
         XCTAssertEqual(status.nextZone, .peak)
-        XCTAssertEqual(status.nextChange, tijuana(2026, 11, 22, 17, 0))
-        XCTAssertEqual(PeakTimeCalculator.nextPeakStart(after: tijuana(2026, 11, 21, 10, 0)),
-                       tijuana(2026, 11, 22, 17, 0))
+        XCTAssertEqual(status.nextChange, dateIn(2026, 11, 22, 17, 0))
+        XCTAssertEqual(PeakTimeCalculator.nextPeakStart(after: dateIn(2026, 11, 21, 10, 0)),
+                       dateIn(2026, 11, 22, 17, 0))
     }
 
     func testHolidayHasNoPeakAheadUntilHolidayEnds() {
         // 1 Oct 2026 (holiday). On the night of 2 Oct it is already Saturday in UTC → off-peak.
         // 5–7 Oct are still holidays, so the first real peak is
-        // Wednesday 7 Oct at 18:00 in Tijuana (Thursday 8 Oct 01:00 UTC).
-        let peak = PeakTimeCalculator.nextPeakStart(after: tijuana(2026, 10, 1, 19, 0))
+        // Wednesday 7 Oct at 18:00 local (Thursday 8 Oct 01:00 UTC).
+        let peak = PeakTimeCalculator.nextPeakStart(after: dateIn(2026, 10, 1, 19, 0))
         XCTAssertNotNil(peak)
-        XCTAssertEqual(peak, tijuana(2026, 10, 7, 18, 0))
+        XCTAssertEqual(peak, dateIn(2026, 10, 7, 18, 0))
     }
 
     // MARK: - UTC rule vs. local presentation
@@ -104,23 +104,23 @@ final class PeakTimeCalculatorTests: XCTestCase {
         XCTAssertEqual(PeakTimeCalculator.zone(at: utc(4, 30)), .cheap)
         XCTAssertEqual(PeakTimeCalculator.zone(at: utc(6)), .peak)
         XCTAssertEqual(PeakTimeCalculator.zone(at: utc(10)), .cheap)
-        // That same 01:00 UTC instant is Sunday 17:00 in Tijuana.
-        XCTAssertEqual(PeakTimeCalculator.zone(at: tijuana(2026, 11, 22, 17, 0)), .peak)
+        // That same 01:00 UTC instant is Sunday 17:00 locally.
+        XCTAssertEqual(PeakTimeCalculator.zone(at: dateIn(2026, 11, 22, 17, 0)), .peak)
     }
 
     func testDisplayConvertsToRequestedTimeZone() {
         // 2026-11-23 01:00 UTC, real start of a peak window.
-        let instant = tijuana(2026, 11, 22, 17, 0)
+        let instant = dateIn(2026, 11, 22, 17, 0)
         XCTAssertEqual(PeakTimeCalculator.localTime(instant, in: TimeZone(secondsFromGMT: 0)!), "01:00")
-        XCTAssertEqual(PeakTimeCalculator.localTime(instant, in: TimeZone(identifier: "America/Tijuana")!), "17:00")
+        XCTAssertEqual(PeakTimeCalculator.localTime(instant, in: TimeZone(identifier: "America/Los_Angeles")!), "17:00")
         XCTAssertEqual(PeakTimeCalculator.localTime(instant, in: TimeZone(identifier: "America/New_York")!), "20:00")
         XCTAssertEqual(PeakTimeCalculator.localTime(instant, in: TimeZone(identifier: "Asia/Shanghai")!), "09:00")
     }
 
     /// The menu date follows the system language, not a fixed English locale.
     func testLocalFullUsesRequestedLocale() {
-        let instant = tijuana(2026, 11, 22, 17, 0)
-        let tz = TimeZone(identifier: "America/Tijuana")!
+        let instant = dateIn(2026, 11, 22, 17, 0)
+        let tz = TimeZone(identifier: "America/Los_Angeles")!
 
         let spanish = PeakTimeCalculator.localFull(instant, in: tz, locale: Locale(identifier: "es_ES"))
         XCTAssertTrue(spanish.contains("dom"))
@@ -136,8 +136,8 @@ final class PeakTimeCalculatorTests: XCTestCase {
     // MARK: - Menu timeline
 
     func testTimelineIsAllGreenWhenNextPeakIsFar() {
-        // Saturday 10:00 Tijuana: the next peak is Sunday 17:00 (31 h later).
-        let after = tijuana(2026, 11, 21, 10, 0)
+        // Saturday 10:00 local: the next peak is Sunday 17:00 (31 h later).
+        let after = dateIn(2026, 11, 21, 10, 0)
         let segments = PeakTimeCalculator.timelineSegments(at: after)
         XCTAssertEqual(segments.count, 1)
         XCTAssertEqual(segments[0].zone, .cheap)
@@ -145,8 +145,8 @@ final class PeakTimeCalculatorTests: XCTestCase {
     }
 
     func testTimelineSplitsGreenAndOrangeAroundPeaks() {
-        // Sunday 15:00 Tijuana = 23:00 UTC. Both night peaks fit into 8 h.
-        let after = tijuana(2026, 11, 22, 15, 0)
+        // Sunday 15:00 local = 23:00 UTC. Both night peaks fit into 8 h.
+        let after = dateIn(2026, 11, 22, 15, 0)
         let segments = PeakTimeCalculator.timelineSegments(at: after)
         XCTAssertEqual(segments.map(\.zone), [.cheap, .peak, .cheap, .peak])
         XCTAssertEqual(segments[0].duration, 2 * 3600, accuracy: 1)
@@ -157,8 +157,8 @@ final class PeakTimeCalculatorTests: XCTestCase {
     }
 
     func testTimelineDuringPeakStartsWithOrange() {
-        // Sunday 19:00 Tijuana = Monday 03:00 UTC: 1 h of peak remains.
-        let after = tijuana(2026, 11, 22, 19, 0)
+        // Sunday 19:00 local = Monday 03:00 UTC: 1 h of peak remains.
+        let after = dateIn(2026, 11, 22, 19, 0)
         let segments = PeakTimeCalculator.timelineSegments(at: after)
         XCTAssertEqual(segments.map(\.zone), [.peak, .cheap, .peak, .cheap])
         XCTAssertEqual(segments[0].duration, 1 * 3600, accuracy: 1)
@@ -166,15 +166,15 @@ final class PeakTimeCalculatorTests: XCTestCase {
     }
 
     func testChineseHolidayTimelineIsAllGreen() {
-        let after = tijuana(2026, 10, 1, 19, 0)
+        let after = dateIn(2026, 10, 1, 19, 0)
         let segments = PeakTimeCalculator.timelineSegments(at: after)
         XCTAssertEqual(segments.count, 1)
         XCTAssertEqual(segments[0].zone, .cheap)
     }
 
     func testCountdownText() {
-        let from = tijuana(2026, 11, 22, 15, 0)
-        XCTAssertEqual(PeakTimeCalculator.countdownText(from: from, to: tijuana(2026, 11, 22, 17, 0)), "2h 0m")
+        let from = dateIn(2026, 11, 22, 15, 0)
+        XCTAssertEqual(PeakTimeCalculator.countdownText(from: from, to: dateIn(2026, 11, 22, 17, 0)), "2h 0m")
         XCTAssertEqual(PeakTimeCalculator.countdownText(from: from, to: from.addingTimeInterval(95)), "1m")
     }
 }

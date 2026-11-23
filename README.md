@@ -1,7 +1,5 @@
 # peaktime
 
-[![CI](https://github.com/beny0102/peaktime/actions/workflows/ci.yml/badge.svg)](https://github.com/beny0102/peaktime/actions/workflows/ci.yml)
-
 A macOS menu bar app that tells you when the DeepSeek API enters or leaves **peak hours** (double pricing). Everything is built from the terminal — no Xcode required.
 
 ## Implemented rules
@@ -10,7 +8,7 @@ Source: <https://api-docs.deepseek.com/quick_start/pricing/>
 
 - **Double price:** 01:00–04:00 and 06:00–10:00 **UTC**, Monday through Friday.
 - **Half price:** everything else, including weekends and Chinese public holidays.
-- The rule is always evaluated in **UTC**; no time zone is hardcoded. In Tijuana that means **17:00–20:00 and 22:00–02:00** in winter (UTC−8) and **18:00–21:00 and 23:00–03:00** in summer (UTC−7), but the app works the same in any country.
+- The rule is always evaluated in **UTC**; no time zone is hardcoded. Windows are displayed in the Mac's current time zone via `TimeZone.autoupdatingCurrent`, so the app works the same in any country.
 - **The pricing decision does not depend on the Mac's time zone**; only the presentation does. Display code uses `TimeZone.autoupdatingCurrent`, so it adapts to the user's country and reacts immediately if the system time zone changes while the app is running (`NSSystemTimeZoneDidChange` observer).
 - `Asia/Shanghai` is deliberately fixed: Chinese holidays are defined by Beijing calendar dates.
 - Applies to the API only (`api.deepseek.com`); the web/app chat has no hourly double charge.
