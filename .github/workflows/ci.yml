@@ -8,9 +8,9 @@ on:
 
 jobs:
   build-and-test:
-    # macos-14 maps to an arm64 runner that is not available for this account.
-    # macos-13 (Intel) is supported and is enough to validate build and tests.
-    runs-on: macos-13
+    # macos-14/13 are retired labels. macos-15 is a currently supported
+    # arm64 runner and matches the architecture of the release artifact.
+    runs-on: macos-15
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
