@@ -56,7 +56,9 @@ private final class PeakTimeModel: ObservableObject {
         status = PeakTimeCalculator.status(at: start)
 
         refresh()
-        timer = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { [weak self] _ in
+        // 1 s para que la cuenta atrás y el borde de la barra se muevan de verdad.
+        // Las notificaciones tienen dedup por clave, así que no se repiten.
+        timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
             self?.refresh()
         }
         // Si el sistema cambia de huso (viaje o ajuste automático), repintamos al instante.
@@ -89,10 +91,19 @@ private final class PeakTimeModel: ObservableObject {
 
     var countdownText: String {
         guard let change = status.nextChange else { return "—" }
-        let seconds = Int(max(0, change.timeIntervalSince(now)))
-        let hours = seconds / 3600
-        let minutes = (seconds % 3600) / 60
-        return hours > 0 ? "\(hours)h \(minutes)m" : "\(minutes)m"
+        return PeakTimeCalculator.countdownText(from: now, to: change)
+    }
+
+    /// Fila protagonista del menú: cuenta atrás hacia el siguiente cambio de precio.
+    var countdownLeadText: String {
+        guard status.nextChange != nil else { return "Sin cambios próximos" }
+        let destination = status.nextZone == .peak ? "precio doble" : "mitad de precio"
+        return "Faltan \(countdownText) para \(destination)"
+    }
+
+    /// Segmentos de la línea de tiempo, derivados del estado en vivo.
+    var timelineSegments: [TimelineSegment] {
+        PeakTimeCalculator.timelineSegments(at: now)
     }
 
     var detailLine: String {
@@ -192,6 +203,62 @@ private final class PeakTimeModel: ObservableObject {
 
 // MARK: - Interfaz
 
+private extension PriceZone {
+    var timelineColor: Color {
+        switch self {
+        case .cheap: return .green
+        case .peak: return .orange
+        }
+    }
+}
+
+private struct TimelineLegend: View {
+    let color: Color
+    let text: String
+
+    var body: some View {
+        HStack(spacing: 4) {
+            Circle().fill(color).frame(width: 6, height: 6)
+            Text(text)
+        }
+    }
+}
+
+/// Una sola línea con el precio actual y el venidero. Cada bloque es proporcional
+/// a su duración dentro de la ventana de 8 h que empieza en "ahora".
+private struct TimelineBar: View {
+    let segments: [TimelineSegment]
+    private let width: CGFloat = 220
+    private let height: CGFloat = 10
+
+    private var totalDuration: TimeInterval {
+        segments.reduce(0) { $0 + $1.duration }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 0) {
+                ForEach(Array(segments.enumerated()), id: \.offset) { _, segment in
+                    segment.zone.timelineColor
+                        .frame(width: totalDuration > 0
+                               ? width * CGFloat(segment.duration / totalDuration)
+                               : 0)
+                }
+            }
+            .frame(width: width, height: height, alignment: .leading)
+            .clipShape(Capsule())
+
+            HStack(spacing: 12) {
+                TimelineLegend(color: .green, text: "Mitad de precio")
+                TimelineLegend(color: .orange, text: "Doble")
+            }
+            .font(.caption2)
+            .foregroundStyle(.secondary)
+        }
+        .animation(.linear(duration: 0.5), value: segments)
+    }
+}
+
 @main
 struct PeakTimeApp: App {
     @StateObject private var model = PeakTimeModel()
@@ -208,6 +275,11 @@ struct PeakTimeApp: App {
                     .font(.caption2)
                     .foregroundStyle(.secondary)
             }
+            Text(model.countdownLeadText)
+                .font(.headline)
+                .monospacedDigit()
+                .padding(.top, 2)
+            TimelineBar(segments: model.timelineSegments)
             Divider()
             Text("Próximo cambio: \(model.nextChangeText)")
             Text("Siguiente doble: \(model.nextPeakText)")

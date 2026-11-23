@@ -132,4 +132,49 @@ final class PeakTimeCalculatorTests: XCTestCase {
         XCTAssertEqual(newYork?.first, "20:00–23:00")
         XCTAssertEqual(newYork?.second, "01:00–05:00")
     }
+
+    // MARK: - Línea de tiempo del menú
+
+    func testTimelineIsAllGreenWhenNextPeakIsFar() {
+        // Sábado 10:00 Tijuana: el próximo pico es domingo 17:00 (31 h después).
+        let after = tijuana(2026, 11, 21, 10, 0)
+        let segments = PeakTimeCalculator.timelineSegments(at: after)
+        XCTAssertEqual(segments.count, 1)
+        XCTAssertEqual(segments[0].zone, .cheap)
+        XCTAssertEqual(segments[0].duration, 8 * 3600, accuracy: 1)
+    }
+
+    func testTimelineSplitsGreenAndOrangeAroundPeaks() {
+        // Domingo 15:00 Tijuana = 23:00 UTC. En 8 h caben los dos picos de la noche.
+        let after = tijuana(2026, 11, 22, 15, 0)
+        let segments = PeakTimeCalculator.timelineSegments(at: after)
+        XCTAssertEqual(segments.map(\.zone), [.cheap, .peak, .cheap, .peak])
+        XCTAssertEqual(segments[0].duration, 2 * 3600, accuracy: 1)
+        XCTAssertEqual(segments[1].duration, 3 * 3600, accuracy: 1)
+        XCTAssertEqual(segments[2].duration, 2 * 3600, accuracy: 1)
+        XCTAssertEqual(segments[3].duration, 1 * 3600, accuracy: 1)
+        XCTAssertEqual(segments.reduce(0) { $0 + $1.duration }, 8 * 3600, accuracy: 1)
+    }
+
+    func testTimelineDuringPeakStartsWithOrange() {
+        // Domingo 19:00 Tijuana = lunes 03:00 UTC: queda 1 h de pico.
+        let after = tijuana(2026, 11, 22, 19, 0)
+        let segments = PeakTimeCalculator.timelineSegments(at: after)
+        XCTAssertEqual(segments.map(\.zone), [.peak, .cheap, .peak, .cheap])
+        XCTAssertEqual(segments[0].duration, 1 * 3600, accuracy: 1)
+        XCTAssertEqual(segments.reduce(0) { $0 + $1.duration }, 8 * 3600, accuracy: 1)
+    }
+
+    func testChineseHolidayTimelineIsAllGreen() {
+        let after = tijuana(2026, 10, 1, 19, 0)
+        let segments = PeakTimeCalculator.timelineSegments(at: after)
+        XCTAssertEqual(segments.count, 1)
+        XCTAssertEqual(segments[0].zone, .cheap)
+    }
+
+    func testCountdownText() {
+        let from = tijuana(2026, 11, 22, 15, 0)
+        XCTAssertEqual(PeakTimeCalculator.countdownText(from: from, to: tijuana(2026, 11, 22, 17, 0)), "2h 0m")
+        XCTAssertEqual(PeakTimeCalculator.countdownText(from: from, to: from.addingTimeInterval(95)), "1m")
+    }
 }

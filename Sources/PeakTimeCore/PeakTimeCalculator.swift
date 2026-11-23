@@ -12,6 +12,17 @@ public struct PriceStatus: Sendable {
     public let isChineseHoliday: Bool
 }
 
+/// Un tramo de la línea de tiempo del menú. Su ancho en pantalla es proporcional a `duration`.
+public struct TimelineSegment: Sendable, Equatable {
+    public let zone: PriceZone
+    public let duration: TimeInterval
+
+    public init(zone: PriceZone, duration: TimeInterval) {
+        self.zone = zone
+        self.duration = duration
+    }
+}
+
 /// Reglas de precio de la API de DeepSeek.
 ///
 /// Documentación oficial: peak = 01:00–04:00 y 06:00–10:00 UTC, lunes a viernes,
@@ -106,6 +117,47 @@ public enum PeakTimeCalculator {
 
     public static func nextPeakStart(after date: Date) -> Date? {
         transitions(after: date).first(where: { $0.zone == .peak })?.date
+    }
+
+    /// Línea de tiempo para el menú: tramos de precio desde `date` hasta `date + horizon`.
+    /// La ventana se ancla en "ahora", así que el verde se acorta y el naranja crece a medida
+    /// que se acerca un pico (y al revés cuando ya estamos en pico). Los tramos consecutivos
+    /// del mismo color se fusionan. La suma de duraciones es siempre `horizon`.
+    public static func timelineSegments(
+        at date: Date,
+        horizon: TimeInterval = 8 * 3600
+    ) -> [TimelineSegment] {
+        guard horizon > 0 else { return [] }
+
+        let end = date.addingTimeInterval(horizon)
+        var segments: [TimelineSegment] = []
+        var cursor = date
+        var currentZone = zone(at: date)
+
+        func append(_ zone: PriceZone, _ duration: TimeInterval) {
+            guard duration > 0 else { return }
+            if let last = segments.indices.last, segments[last].zone == zone {
+                segments[last] = TimelineSegment(zone: zone, duration: segments[last].duration + duration)
+            } else {
+                segments.append(TimelineSegment(zone: zone, duration: duration))
+            }
+        }
+
+        for transition in transitions(after: date) where transition.date < end {
+            append(currentZone, transition.date.timeIntervalSince(cursor))
+            cursor = transition.date
+            currentZone = transition.zone
+        }
+        append(currentZone, end.timeIntervalSince(cursor))
+        return segments
+    }
+
+    /// Texto de cuenta atrás usado tanto en la barra superior como en el menú.
+    public static func countdownText(from now: Date, to date: Date) -> String {
+        let seconds = max(0, Int(date.timeIntervalSince(now)))
+        let hours = seconds / 3600
+        let minutes = (seconds % 3600) / 60
+        return hours > 0 ? "\(hours)h \(minutes)m" : "\(minutes)m"
     }
 
     /// Franjas dobles en hora local, derivadas del próximo pico real (no de una tabla fija).

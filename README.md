@@ -19,7 +19,7 @@ La lógica vive en `Sources/PeakTimeCore` y los festivos chinos (2026–2027) en
 
 ```bash
 ./build.sh                  # compila, arma dist/peaktime.app y lo firma
-swift test                  # 14 tests de fecha/zona/transiciones
+swift test                  # 19 tests de fecha/zona/transiciones/línea de tiempo
 open dist/peaktime.app      # abrir
 pkill -x peaktime           # cerrar
 cp -R dist/peaktime.app /Applications/   # instalar (opcional)
@@ -27,9 +27,10 @@ cp -R dist/peaktime.app /Applications/   # instalar (opcional)
 
 ## Comportamiento
 
-- La barra muestra `Barato · 3h45m` o `Doble · 1h20m` (tiempo hasta el próximo cambio).
-- El menú muestra el próximo cambio y las franjas dobles **en el huso horario de la Mac** (calculadas desde el próximo pico real, respetando el DST vigente), además de si el día es festivo chino.
-- Cada 30 s se recalcula. Avisos (una vez por transición, con dedup en `UserDefaults`):
+- La barra superior muestra `Barato · 3h45m` o `Doble · 1h20m` (tiempo hasta el próximo cambio).
+- El menú abre con una cuenta atrás protagonista (`Faltan 1h 28m para precio doble`) y una **línea de tiempo** de 8 h desde ahora: 🟢 verde = mitad de precio, 🟠 naranja = precio doble. Si el próximo pico está a más de 8 h, la línea sale toda verde; a medida que se acerca, el verde se acorta y el naranja crece. Al entrar en pico ocurre al revés. El ancho de cada bloque es proporcional a su duración real.
+- Debajo siguen el próximo cambio y las franjas dobles **en el huso horario de la Mac** (calculadas desde el próximo pico real, respetando el DST vigente), además de si el día es festivo chino.
+- Cada 1 s se recalcula la cuenta atrás y la línea de tiempo. Avisos (una vez por transición, con dedup en `UserDefaults`):
   - `⏰ DeepSeek sube en 15 min`
   - `⚠️ Precio doble en DeepSeek`
   - `✅ Mitad de precio en DeepSeek`
