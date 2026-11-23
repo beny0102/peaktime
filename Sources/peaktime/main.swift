@@ -101,14 +101,12 @@ private final class PeakTimeModel: ObservableObject {
     // MARK: Textos de la barra y del menú
 
     /// Icono elegido por el usuario en la lámina comparativa.
+    /// Se renderiza como template nativo: macOS lo pinta en blanco y negro,
+    /// igual que los demás iconos de la barra de menús.
     var iconName: String {
         status.zone == .peak
             ? "chart.line.uptrend.xyaxis.circle.fill"
             : "tag.circle.fill"
-    }
-
-    var iconColor: NSColor {
-        status.zone == .peak ? .systemOrange : .systemGreen
     }
 
     var countdownText: String {
@@ -394,28 +392,15 @@ final class PeakTimeAppDelegate: NSObject, NSApplicationDelegate {
         updateUI()
     }
 
-    /// SF Symbol teñido con el color de la zona, tal como se vio en la lámina.
-    private func statusImage() -> NSImage? {
-        let size: CGFloat = 18
-        guard let base = NSImage(systemSymbolName: model.iconName, accessibilityDescription: nil)
-        else { return nil }
-        let config = NSImage.SymbolConfiguration(pointSize: size, weight: .semibold)
-        let symbol = base.withSymbolConfiguration(config) ?? base
-
-        let image = NSImage(size: NSSize(width: size, height: size))
-        image.lockFocus()
-        let rect = NSRect(origin: .zero, size: image.size)
-        model.iconColor.setFill()
-        rect.fill()
-        symbol.draw(in: rect, from: rect, operation: .destinationIn, fraction: 1)
-        image.unlockFocus()
-        image.isTemplate = false
-        return image
-    }
-
     private func updateUI() {
         let button = statusItem.button
-        button?.image = statusImage()
+        // Símbolo nativo como template: macOS aplica el aspecto monocromático
+        // del sistema (negro en claro, blanco en oscuro) y escala sin recortar.
+        let config = NSImage.SymbolConfiguration(pointSize: 16, weight: .semibold)
+        let image = NSImage(systemSymbolName: model.iconName, accessibilityDescription: nil)?
+            .withSymbolConfiguration(config)
+        image?.isTemplate = true
+        button?.image = image
         // El usuario quiere solo el icono en la barra superior; el texto vive en el menú.
         button?.title = ""
 
