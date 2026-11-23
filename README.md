@@ -19,7 +19,7 @@ La lógica vive en `Sources/PeakTimeCore` y los festivos chinos (2026–2027) en
 
 ```bash
 ./build.sh                  # compila, arma dist/peaktime.app y lo firma
-swift test                  # 19 tests de fecha/zona/transiciones/línea de tiempo
+swift test                  # 20 tests de fecha/zona/idioma/transiciones/línea de tiempo
 open dist/peaktime.app      # abrir
 pkill -x peaktime           # cerrar
 cp -R dist/peaktime.app /Applications/   # instalar (opcional)
@@ -28,6 +28,7 @@ cp -R dist/peaktime.app /Applications/   # instalar (opcional)
 ## Comportamiento
 
 - La barra superior muestra **solo el icono** (⚠️ en doble, 💰 en barato), sin texto.
+- **Todo el texto sigue el idioma del sistema** (español / inglés): cuenta atrás, «Empieza:», «Salir» y los avisos viven en un catálogo `Localizable.xcstrings`; la fecha usa `Locale.current` (`dom, 22 nov, 17:00` en español, `Sun, Nov 22 at 5:00 PM` en inglés). Si cambias el idioma del sistema, la app lo adopta al relanzarla.
 - El menú es intencionalmente mínimo: **cuenta atrás corta** (`2h 24m para descuento` / `2h 24m para hora pico`), **barra horizontal** de 8 h desde ahora (🟢 descuento, 🟠 doble), **hora local en que empieza el siguiente tramo** (`Empieza: lun 23 nov 17:00`) y **Salir**. Nada más. Siguiendo la HIG de Apple, los tres componentes comparten un margen lateral de 20 px, están alineados por el mismo borde y separados por **8 px verticales** (4 px arriba + 4 px abajo en cada fila); un separador agrupa la información de la acción «Salir».
 - El menú es **AppKit puro** (`NSStatusItem` + `NSMenu`): `MenuBarExtra` de SwiftUI descartaba la vista personalizada y la barra nunca aparecía. Ahora la barra es un `NSMenuItem` con una `NSView` nativa dibujada con `NSBezierPath` (220 px de ancho dentro de una vista de 260 px, extremos redondeados). El ancho de cada bloque es proporcional a su duración real: si el próximo pico está a más de 8 h sale toda verde; al acercarse el verde se acorta y el naranja crece (y al revés durante el pico).
 - Cada 1 s se recalcula la cuenta atrás y la línea de tiempo. El timer se registra en `RunLoop.main` con modo `.common` (incluye `.eventTracking`), así que **sigue actualizando con el menú abierto**. Avisos (una vez por transición, con dedup en `UserDefaults`):

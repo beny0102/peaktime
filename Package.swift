@@ -8,7 +8,9 @@ let package = Package(
         .target(name: "PeakTimeCore"),
         .executableTarget(
             name: "peaktime",
-            dependencies: ["PeakTimeCore"]
+            dependencies: ["PeakTimeCore"],
+            // Catálogo de cadenas: la app habla el idioma del sistema (es/en).
+            resources: [.process("Resources")]
         ),
         .testTarget(
             name: "PeakTimeCoreTests",

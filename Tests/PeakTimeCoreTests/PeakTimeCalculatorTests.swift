@@ -108,6 +108,22 @@ final class PeakTimeCalculatorTests: XCTestCase {
         XCTAssertEqual(PeakTimeCalculator.localTime(instant, in: TimeZone(identifier: "Asia/Shanghai")!), "09:00")
     }
 
+    /// La fecha del menú sigue el idioma del sistema, no un locale fijo en inglés.
+    func testLocalFullUsesRequestedLocale() {
+        let instant = tijuana(2026, 11, 22, 17, 0)
+        let tz = TimeZone(identifier: "America/Tijuana")!
+
+        let spanish = PeakTimeCalculator.localFull(instant, in: tz, locale: Locale(identifier: "es_ES"))
+        XCTAssertTrue(spanish.contains("dom"))
+        XCTAssertTrue(spanish.contains("nov"))
+        XCTAssertTrue(spanish.contains("17:00"))
+
+        let english = PeakTimeCalculator.localFull(instant, in: tz, locale: Locale(identifier: "en_US"))
+        XCTAssertTrue(english.contains("Sun"))
+        XCTAssertTrue(english.contains("Nov"))
+        XCTAssertTrue(english.contains("5:00"))
+    }
+
     /// Las franjas del menú no son una tabla fija: se derivan del pico real y se
     /// convierten al huso que se pida, cambiando con el DST y con el país del usuario.
     func testLocalPeakWindowsAdaptToTimeZone() {

@@ -181,7 +181,16 @@ public enum PeakTimeCalculator {
         formatter("HH:mm", timeZone: timeZone).string(from: date)
     }
 
-    public static func localFull(_ date: Date, in timeZone: TimeZone = .autoupdatingCurrent) -> String {
-        formatter("EEE d MMM HH:mm", timeZone: timeZone).string(from: date)
+    /// Fecha completa en el idioma del sistema. El `locale` es inyectable para los tests.
+    public static func localFull(
+        _ date: Date,
+        in timeZone: TimeZone = .autoupdatingCurrent,
+        locale: Locale = .current
+    ) -> String {
+        var style = Date.FormatStyle.dateTime
+            .weekday(.abbreviated).day().month(.abbreviated).hour().minute()
+        style.timeZone = timeZone
+        style.locale = locale
+        return date.formatted(style)
     }
 }

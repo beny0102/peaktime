@@ -7,6 +7,29 @@ import PeakTimeCore
 private let notificationLog = Logger(subsystem: "com.local.peaktime", category: "avisos")
 private let appLog = Logger(subsystem: "com.local.peaktime", category: "app")
 
+/// Cadenas del catálogo (Localizable.xcstrings). Elegimos el `.lproj` según el
+/// idioma del sistema para que no dependa del `CFBundleDevelopmentRegion` del
+/// bundle de recursos; si el usuario cambia de idioma, se aplica al relanzar.
+private enum L10n {
+    private static var bundle: Bundle {
+        let code = Locale.current.language.languageCode?.identifier ?? "en"
+        let preferred = code == "es" ? "es" : "en"
+        if let path = Bundle.module.path(forResource: preferred, ofType: "lproj"),
+           let localized = Bundle(path: path) {
+            return localized
+        }
+        return .module
+    }
+
+    static func string(_ key: String) -> String {
+        NSLocalizedString(key, bundle: bundle, comment: "")
+    }
+
+    static func format(_ key: String, _ args: CVarArg...) -> String {
+        String(format: string(key), arguments: args)
+    }
+}
+
 // MARK: - Notificaciones visibles con la app en primer plano
 
 private final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
@@ -88,9 +111,11 @@ private final class PeakTimeModel: ObservableObject {
 
     /// Fila protagonista del menú: cuenta atrás corta hacia el siguiente cambio.
     var countdownLeadText: String {
-        guard status.nextChange != nil else { return "Sin cambios próximos" }
-        let destination = status.nextZone == .peak ? "hora pico" : "descuento"
-        return "\(countdownText) para \(destination)"
+        guard status.nextChange != nil else { return L10n.string("Sin cambios próximos") }
+        let destination = status.nextZone == .peak
+            ? L10n.string("hora pico")
+            : L10n.string("descuento")
+        return L10n.format("%@ para %@", countdownText, destination)
     }
 
     /// Segmentos de la línea de tiempo, derivados del estado en vivo.
@@ -101,7 +126,7 @@ private final class PeakTimeModel: ObservableObject {
     /// Hora local en que empieza el siguiente tramo de precio.
     var nextStartText: String {
         guard let change = status.nextChange else { return "—" }
-        return "Empieza: \(PeakTimeCalculator.localFull(change))"
+        return L10n.format("Empieza: %@", PeakTimeCalculator.localFull(change))
     }
 
     var peakEndText: String {
@@ -124,13 +149,13 @@ private final class PeakTimeModel: ObservableObject {
         switch (previousZone, newStatus.zone) {
         case (.cheap, .peak):
             notify(
-                title: "⚠️ Precio doble en DeepSeek",
-                body: "Ahora pagas el doble. Vuelve a la mitad a las \(peakEndText)."
+                title: L10n.string("⚠️ Precio doble en DeepSeek"),
+                body: L10n.format("Ahora pagas el doble. Vuelve a la mitad a las %@.", peakEndText)
             )
         case (.peak, .cheap):
             notify(
-                title: "✅ Mitad de precio en DeepSeek",
-                body: "Sigue barato hasta las \(nextChangeLocal)."
+                title: L10n.string("✅ Mitad de precio en DeepSeek"),
+                body: L10n.format("Sigue barato hasta las %@.", nextChangeLocal)
             )
         default:
             break
@@ -142,8 +167,11 @@ private final class PeakTimeModel: ObservableObject {
             if remaining > 0, remaining <= 15 * 60, lastNotifiedKey != key {
                 lastNotifiedKey = key
                 notify(
-                    title: "⏰ DeepSeek sube en 15 min",
-                    body: "El precio doble empieza a las \(PeakTimeCalculator.localTime(change))."
+                    title: L10n.string("⏰ DeepSeek sube en 15 min"),
+                    body: L10n.format(
+                        "El precio doble empieza a las %@.",
+                        PeakTimeCalculator.localTime(change)
+                    )
                 )
             }
         }
@@ -164,7 +192,7 @@ private final class PeakTimeModel: ObservableObject {
             content: content,
             trigger: nil
         )
-        notificationLog.info("Aviso enviado: \(title) — \(body)")
+        notificationLog.info("Aviso enviado: \(title, privacy: .public) — \(body, privacy: .public)")
         notificationCenter.add(request)
     }
 }
@@ -320,7 +348,7 @@ final class PeakTimeAppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(startItem)
         menu.addItem(NSMenuItem.separator())
 
-        let quit = NSMenuItem(title: "Salir", action: #selector(quitApp), keyEquivalent: "q")
+        let quit = NSMenuItem(title: L10n.string("Salir"), action: #selector(quitApp), keyEquivalent: "q")
         quit.target = self
         menu.addItem(quit)
 
