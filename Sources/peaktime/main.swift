@@ -5,6 +5,7 @@ import OSLog
 import PeakTimeCore
 
 private let notificationLog = Logger(subsystem: "com.local.peaktime", category: "avisos")
+private let appLog = Logger(subsystem: "com.local.peaktime", category: "app")
 
 // MARK: - Notificaciones visibles con la app en primer plano
 
@@ -217,7 +218,6 @@ private final class TimelineNSView: NSView {
     }
 }
 
-@main
 final class PeakTimeAppDelegate: NSObject, NSApplicationDelegate {
     private let model = PeakTimeModel()
     private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
@@ -228,6 +228,7 @@ final class PeakTimeAppDelegate: NSObject, NSApplicationDelegate {
     private var uiTimer: Timer?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        appLog.info("AppKit delegate arrancó")
         let menu = NSMenu()
         menu.autoenablesItems = false
 
@@ -304,3 +305,11 @@ final class PeakTimeAppDelegate: NSObject, NSApplicationDelegate {
         )
     }
 }
+
+// Arranque explícito: con @main sobre un NSApplicationDelegate y sin nib, AppKit
+// no llega a llamar a applicationDidFinishLaunching. Aquí sí lo hacemos.
+let application = NSApplication.shared
+let delegate = PeakTimeAppDelegate()
+application.delegate = delegate
+application.setActivationPolicy(.accessory)
+application.run()
