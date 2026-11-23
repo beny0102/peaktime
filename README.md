@@ -25,6 +25,41 @@ pkill -x peaktime           # quit
 cp -R dist/peaktime.app /Applications/   # install (optional)
 ```
 
+## Install
+
+Build the app first, then copy the bundle into Applications:
+
+```bash
+./build.sh
+cp -R dist/peaktime.app /Applications/
+open /Applications/peaktime.app
+```
+
+The app is built locally and signed ad hoc, so it has no quarantine attribute and normally opens without a Gatekeeper warning. If you ever copied it from somewhere that added one, remove it:
+
+```bash
+xattr -dr com.apple.quarantine /Applications/peaktime.app
+```
+
+After the first launch, allow notifications in System Settings → Notifications → peaktime.
+
+To update, quit the running app and replace the bundle with a fresh build:
+
+```bash
+pkill -x peaktime
+./build.sh
+rm -rf /Applications/peaktime.app
+cp -R dist/peaktime.app /Applications/
+```
+
+To uninstall:
+
+```bash
+pkill -x peaktime
+rm -rf /Applications/peaktime.app
+defaults delete com.local.peaktime   # optional: clear the notification dedup preference
+```
+
 ## Behavior
 
 - The menu bar shows **only an icon**, no text: `chart.line.uptrend.xyaxis.circle.fill` during peak hours and `tag.circle.fill` during the discount. They render as **native template SF Symbols**, so macOS paints them black and white like the other system icons (no color backgrounds and no clipping).
