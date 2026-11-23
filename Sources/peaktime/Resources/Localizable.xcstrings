@@ -17,34 +17,34 @@
         }
       }
     },
-    "⚠️ Precio doble en DeepSeek" : {
+    "📈 Precio doble en DeepSeek" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "⚠️ Peak pricing on DeepSeek"
+            "value" : "📈 Peak pricing on DeepSeek"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "⚠️ Precio doble en DeepSeek"
+            "value" : "📈 Precio doble en DeepSeek"
           }
         }
       }
     },
-    "✅ Mitad de precio en DeepSeek" : {
+    "📉 Mitad de precio en DeepSeek" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "✅ Half price on DeepSeek"
+            "value" : "📉 Half price on DeepSeek"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "✅ Mitad de precio en DeepSeek"
+            "value" : "📉 Mitad de precio en DeepSeek"
           }
         }
       }
