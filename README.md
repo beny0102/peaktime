@@ -30,7 +30,7 @@ cp -R dist/peaktime.app /Applications/   # instalar (opcional)
 - La barra superior muestra **solo el icono** (⚠️ en doble, 💰 en barato), sin texto.
 - El menú es intencionalmente mínimo: **cuenta atrás** (`Faltan 1h 28m para precio doble`), **barra horizontal** de 8 h desde ahora (🟢 verde = mitad de precio, 🟠 naranja = precio doble), **hora local en que empieza el siguiente tramo** (`Empieza: lun 23 nov 17:00`) y **Salir**. Nada más.
 - El menú es **AppKit puro** (`NSStatusItem` + `NSMenu`): `MenuBarExtra` de SwiftUI descartaba la vista personalizada y la barra nunca aparecía. Ahora la barra es un `NSMenuItem` con una `NSView` nativa dibujada con `NSBezierPath` (ancho fijo de 240 px, extremos redondeados). El ancho de cada bloque es proporcional a su duración real: si el próximo pico está a más de 8 h sale toda verde; al acercarse el verde se acorta y el naranja crece (y al revés durante el pico).
-- Cada 1 s se recalcula la cuenta atrás y la línea de tiempo. Avisos (una vez por transición, con dedup en `UserDefaults`):
+- Cada 1 s se recalcula la cuenta atrás y la línea de tiempo. El timer se registra en `RunLoop.main` con modo `.common` (incluye `.eventTracking`), así que **sigue actualizando con el menú abierto**. Avisos (una vez por transición, con dedup en `UserDefaults`):
   - `⏰ DeepSeek sube en 15 min`
   - `⚠️ Precio doble en DeepSeek`
   - `✅ Mitad de precio en DeepSeek`

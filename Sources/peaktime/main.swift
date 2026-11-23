@@ -229,6 +229,29 @@ final class PeakTimeAppDelegate: NSObject, NSApplicationDelegate {
     private let countdownItem = NSMenuItem()
     private let startItem = NSMenuItem()
     private let barView = TimelineNSView()
+
+    private let countdownLabel: NSTextField = {
+        let label = NSTextField(labelWithString: "")
+        label.isBezeled = false
+        label.drawsBackground = false
+        label.isEditable = false
+        label.isSelectable = false
+        label.font = .boldSystemFont(ofSize: 13)
+        label.textColor = .labelColor
+        return label
+    }()
+
+    private let startLabel: NSTextField = {
+        let label = NSTextField(labelWithString: "")
+        label.isBezeled = false
+        label.drawsBackground = false
+        label.isEditable = false
+        label.isSelectable = false
+        label.font = .systemFont(ofSize: 11)
+        label.textColor = .secondaryLabelColor
+        return label
+    }()
+
     private var uiTimer: Timer?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -237,7 +260,12 @@ final class PeakTimeAppDelegate: NSObject, NSApplicationDelegate {
         menu.autoenablesItems = false
 
         countdownItem.isEnabled = false
+        countdownLabel.frame = NSRect(x: 16, y: 0, width: 244, height: 18)
+        countdownItem.view = countdownLabel
+
         startItem.isEnabled = false
+        startLabel.frame = NSRect(x: 16, y: 0, width: 244, height: 16)
+        startItem.view = startLabel
 
         let barItem = NSMenuItem()
         barItem.isEnabled = false
@@ -256,9 +284,12 @@ final class PeakTimeAppDelegate: NSObject, NSApplicationDelegate {
         statusItem.menu = menu
 
         updateUI()
-        uiTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
+        // `.common` incluye `.eventTracking`: sin esto el timer se congela mientras
+        // el menú está abierto, porque AppKit cambia el modo del run loop.
+        uiTimer = Timer(timeInterval: 1, repeats: true) { [weak self] _ in
             self?.tick()
         }
+        RunLoop.main.add(uiTimer!, forMode: .common)
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(timeZoneChanged),
@@ -293,21 +324,11 @@ final class PeakTimeAppDelegate: NSObject, NSApplicationDelegate {
         // El usuario quiere solo el icono en la barra superior; el texto vive en el menú.
         button?.title = ""
 
-        countdownItem.attributedTitle = NSAttributedString(
-            string: model.countdownLeadText,
-            attributes: [
-                .font: NSFont.boldSystemFont(ofSize: 13),
-                .foregroundColor: NSColor.labelColor
-            ]
-        )
+        countdownLabel.stringValue = model.countdownLeadText
+        countdownLabel.setNeedsDisplay()
         barView.segments = model.timelineSegments
-        startItem.attributedTitle = NSAttributedString(
-            string: model.nextStartText,
-            attributes: [
-                .font: NSFont.systemFont(ofSize: 11),
-                .foregroundColor: NSColor.secondaryLabelColor
-            ]
-        )
+        startLabel.stringValue = model.nextStartText
+        startLabel.setNeedsDisplay()
     }
 }
 
