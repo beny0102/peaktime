@@ -81,10 +81,6 @@ private final class PeakTimeModel: ObservableObject {
         status.zone == .peak ? "exclamationmark.triangle.fill" : "dollarsign.circle.fill"
     }
 
-    var titleText: String {
-        "\(status.zone.rawValue) · \(countdownText)"
-    }
-
     var countdownText: String {
         guard let change = status.nextChange else { return "—" }
         return PeakTimeCalculator.countdownText(from: now, to: change)
@@ -183,11 +179,11 @@ private final class TimelineNSView: NSView {
         didSet { setNeedsDisplay(bounds) }
     }
 
-    private let barWidth: CGFloat = 240
-    private let barHeight: CGFloat = 12
+    private let sideInset: CGFloat = 16
+    private let barHeight: CGFloat = 10
 
     override var intrinsicContentSize: NSSize {
-        NSSize(width: barWidth, height: barHeight + 4)
+        NSSize(width: 260, height: 20)
     }
 
     override func draw(_ dirtyRect: NSRect) {
@@ -196,19 +192,27 @@ private final class TimelineNSView: NSView {
         guard total > 0 else { return }
 
         let rect = NSRect(
-            x: (bounds.width - barWidth) / 2,
+            x: sideInset,
             y: (bounds.height - barHeight) / 2,
-            width: barWidth,
+            width: max(0, bounds.width - 2 * sideInset),
             height: barHeight
         )
+        let capsule = NSBezierPath(roundedRect: rect, xRadius: barHeight / 2, yRadius: barHeight / 2)
+
+        // Pista tenue + borde: dan cuerpo a la barra sin añadir elementos al menú.
+        NSColor.quaternaryLabelColor.withAlphaComponent(0.35).setFill()
+        capsule.fill()
+        capsule.lineWidth = 1
+        NSColor.separatorColor.setStroke()
+        capsule.stroke()
 
         NSGraphicsContext.saveGraphicsState()
-        NSBezierPath(roundedRect: rect, xRadius: barHeight / 2, yRadius: barHeight / 2).addClip()
+        capsule.addClip()
 
         var x = rect.minX
         for segment in segments {
             let w = rect.width * CGFloat(segment.duration / total)
-            let slice = NSRect(x: x, y: rect.minY, width: w, height: rect.height)
+            let slice = NSRect(x: x, y: rect.minY, width: max(0, w - 1), height: rect.height)
             let color: NSColor = segment.zone == .peak ? .systemOrange : .systemGreen
             color.setFill()
             NSBezierPath(rect: slice).fill()
@@ -237,7 +241,7 @@ final class PeakTimeAppDelegate: NSObject, NSApplicationDelegate {
 
         let barItem = NSMenuItem()
         barItem.isEnabled = false
-        barView.frame = NSRect(x: 0, y: 0, width: 240, height: 16)
+        barView.frame = NSRect(x: 0, y: 0, width: 260, height: 20)
         barItem.view = barView
 
         menu.addItem(countdownItem)
@@ -284,9 +288,10 @@ final class PeakTimeAppDelegate: NSObject, NSApplicationDelegate {
     private func updateUI() {
         let button = statusItem.button
         let image = NSImage(systemSymbolName: model.iconName, accessibilityDescription: nil)
-        image?.size = NSSize(width: 16, height: 16)
+        image?.size = NSSize(width: 18, height: 18)
         button?.image = image
-        button?.title = " " + model.titleText
+        // El usuario quiere solo el icono en la barra superior; el texto vive en el menú.
+        button?.title = ""
 
         countdownItem.attributedTitle = NSAttributedString(
             string: model.countdownLeadText,
