@@ -1,4 +1,4 @@
-import SwiftUI
+import Foundation
 import AppKit
 import UserNotifications
 import OSLog
@@ -44,9 +44,9 @@ private final class NotificationDelegate: NSObject, UNUserNotificationCenterDele
 
 // MARK: - Model: live state, timer, and notifications
 
-private final class PeakTimeModel: ObservableObject {
-    @Published private(set) var now: Date = Date()
-    @Published private(set) var status: PriceStatus = PeakTimeCalculator.status(at: Date())
+private final class PeakTimeModel {
+    private(set) var now: Date = Date()
+    private(set) var status: PriceStatus = PeakTimeCalculator.status(at: Date())
 
     private let notificationCenter = UNUserNotificationCenter.current()
     // `delegate` is weak: keep a strong reference or it is deallocated when init() returns.
@@ -212,9 +212,9 @@ private enum MenuLayout {
     static let width: CGFloat = 260
     static let horizontalInset: CGFloat = 20
     static let verticalPadding: CGFloat = 4
-    static let countdownRowHeight: CGFloat = 26   // 18 de texto + 4 + 4
-    static let barRowHeight: CGFloat = 28         // 20 for the bar + 4 + 4
-    static let startRowHeight: CGFloat = 24       // 16 de texto + 4 + 4
+    static let countdownRowHeight: CGFloat = 26   // 18 pt of text + 4 + 4
+    static let barRowHeight: CGFloat = 28         // 20 pt of bar + 4 + 4
+    static let startRowHeight: CGFloat = 24       // 16 pt of text + 4 + 4
 }
 
 /// The bar is drawn as a native NSView inside an NSMenuItem. SwiftUI drops
@@ -295,7 +295,7 @@ private final class PaddedLabelView: NSView {
     }
 
     required init?(coder: NSCoder) {
-        fatalError("init(coder:) no usado")
+        fatalError("init(coder:) is not used")
     }
 
     var text: String {

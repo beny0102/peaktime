@@ -1,8 +1,8 @@
 import Foundation
 
-public enum PriceZone: String, Sendable {
-    case cheap = "Barato"
-    case peak = "Doble"
+public enum PriceZone: Sendable {
+    case cheap
+    case peak
 }
 
 public struct PriceStatus: Sendable {
@@ -158,18 +158,6 @@ public enum PeakTimeCalculator {
         let hours = seconds / 3600
         let minutes = (seconds % 3600) / 60
         return hours > 0 ? "\(hours)h \(minutes)m" : "\(minutes)m"
-    }
-
-    /// Peak windows in local time, derived from the real next peak (not a fixed table).
-    /// Windows last 3 h, start 5 h later, and the second ends 9 h after the first starts.
-    public static func localPeakWindows(
-        after date: Date,
-        in timeZone: TimeZone = .autoupdatingCurrent
-    ) -> (first: String, second: String)? {
-        guard let start = nextPeakStart(after: date) else { return nil }
-        let fmt = { (offset: TimeInterval) in localTime(start.addingTimeInterval(offset), in: timeZone) }
-        return (first: "\(fmt(0))–\(fmt(3 * 3600))",
-                second: "\(fmt(5 * 3600))–\(fmt(9 * 3600))")
     }
 
     // MARK: - Presentation in the Mac's time zone

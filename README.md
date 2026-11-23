@@ -13,7 +13,7 @@ Source: <https://api-docs.deepseek.com/quick_start/pricing/>
 - `Asia/Shanghai` is deliberately fixed: Chinese holidays are defined by Beijing calendar dates.
 - Applies to the API only (`api.deepseek.com`); the web/app chat has no hourly double charge.
 
-The logic lives in `Sources/PeakTimeCore`, and the Chinese holidays (2026–2027) in `ChineseHolidays.swift`. **Update that list every year** when DeepSeek/timeanddate publish the next calendar.
+The logic lives in `Sources/PeakTimeCore`, and the Chinese holidays (2026–2028, with 2027–2028 marked preliminary by the source) in `ChineseHolidays.swift`. **Update that list every year** when DeepSeek/timeanddate publish the next calendar.
 
 ## Commands
 
@@ -64,8 +64,8 @@ defaults delete com.local.peaktime   # optional: clear the notification dedup pr
 
 - The menu bar shows **only an icon**, no text: `chart.line.uptrend.xyaxis.circle.fill` during peak hours and `tag.circle.fill` during the discount. They render as **native template SF Symbols**, so macOS paints them black and white like the other system icons (no color backgrounds and no clipping).
 - **All text follows the system language** (Spanish / English): the countdown, "Starts:", "Quit", and the notifications live in a `Localizable.xcstrings` catalog; dates use `Locale.current` (`dom, 22 nov, 17:00` in Spanish, `Sun, Nov 22 at 5:00 PM` in English). A system language change is picked up on relaunch.
-- The menu is intentionally minimal: a **short countdown** (`2h 24m until discount` / `2h 24m until peak hours`), an **8-hour horizontal timeline** from now (🟢 discount, 🟠 double price), the **local time when the next pricing period starts** (`Starts: Mon 23 Nov 17:00`), and **Quit**. Nothing else. Following Apple's HIG, the three components share a 20 px horizontal inset, are aligned to the same leading edge, and are separated by **8 px of vertical space** (4 px above + 4 px below each row); a separator groups the informational items from the "Quit" action.
-- The menu is **pure AppKit** (`NSStatusItem` + `NSMenu`): SwiftUI's `MenuBarExtra` discarded custom views and the bar never appeared. The bar is now an `NSMenuItem` with a native `NSView` drawn with `NSBezierPath` (220 px wide inside a 260 px view, rounded ends). Each block's width is proportional to its real duration: if the next peak is more than 8 hours away the bar is all green; as it approaches, green shrinks and orange grows (and the reverse during a peak).
+- The menu is intentionally minimal: a **short countdown** (`2h 24m until discount` / `2h 24m until peak hours`), an **8-hour horizontal timeline** from now (🟢 discount, 🟠 double price), the **local time when the next pricing period starts** (`Starts: Mon 23 Nov 17:00`), and **Quit**. Nothing else. Following Apple's HIG, the three components share a 20 pt horizontal inset, are aligned to the same leading edge, and are separated by **8 pt of vertical space** (4 pt above + 4 pt below each row); a separator groups the informational items from the "Quit" action.
+- The menu is **pure AppKit** (`NSStatusItem` + `NSMenu`): SwiftUI's `MenuBarExtra` discarded custom views and the bar never appeared. The bar is now an `NSMenuItem` with a native `NSView` drawn with `NSBezierPath` (220 pt wide inside a 260 pt view, rounded ends). Each block's width is proportional to its real duration: if the next peak is more than 8 hours away the bar is all green; as it approaches, green shrinks and orange grows (and the reverse during a peak).
 - The countdown and timeline are recalculated every second. The timer is registered on `RunLoop.main` in `.common` mode (which includes `.eventTracking`), so it **keeps updating while the menu is open**. Notifications fire once per transition, deduplicated in `UserDefaults`:
   - `⏰ DeepSeek price rises in 15 min`
   - `📈 Peak pricing on DeepSeek`

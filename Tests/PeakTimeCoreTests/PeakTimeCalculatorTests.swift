@@ -55,6 +55,15 @@ final class PeakTimeCalculatorTests: XCTestCase {
         XCTAssertFalse(PeakTimeCalculator.isChineseHoliday(tijuana(2026, 11, 23, 19, 0)))
     }
 
+    func testChineseHoliday2028IsLoaded() {
+        // Spring Festival 2028 runs Jan 25-31 in Beijing.
+        XCTAssertTrue(PeakTimeCalculator.isChineseHoliday(tijuana(2028, 1, 26, 19, 0)))
+        XCTAssertEqual(PeakTimeCalculator.zone(at: tijuana(2028, 1, 26, 19, 0)), .cheap)
+
+        // An ordinary weekday in 2028 still follows the UTC peak rule.
+        XCTAssertFalse(PeakTimeCalculator.isChineseHoliday(tijuana(2028, 11, 21, 19, 0)))
+    }
+
     // MARK: - Upcoming changes
 
     func testNextTransitionOutOfPeak() {
@@ -122,31 +131,6 @@ final class PeakTimeCalculatorTests: XCTestCase {
         XCTAssertTrue(english.contains("Sun"))
         XCTAssertTrue(english.contains("Nov"))
         XCTAssertTrue(english.contains("5:00"))
-    }
-
-    /// Menu windows are not a fixed table: they are derived from the real peak and
-    /// converted to the requested time zone, changing with DST and with the user's country.
-    func testLocalPeakWindowsAdaptToTimeZone() {
-        let tj = TimeZone(identifier: "America/Tijuana")!
-        let ny = TimeZone(identifier: "America/New_York")!
-
-        let winter = PeakTimeCalculator.localPeakWindows(
-            after: tijuana(2026, 11, 21, 10, 0), in: tj
-        )
-        XCTAssertEqual(winter?.first, "17:00–20:00")
-        XCTAssertEqual(winter?.second, "22:00–02:00")
-
-        let summer = PeakTimeCalculator.localPeakWindows(
-            after: tijuana(2026, 7, 18, 10, 0), in: tj
-        )
-        XCTAssertEqual(summer?.first, "18:00–21:00")
-        XCTAssertEqual(summer?.second, "23:00–03:00")
-
-        let newYork = PeakTimeCalculator.localPeakWindows(
-            after: tijuana(2026, 11, 21, 10, 0), in: ny
-        )
-        XCTAssertEqual(newYork?.first, "20:00–23:00")
-        XCTAssertEqual(newYork?.second, "01:00–05:00")
     }
 
     // MARK: - Menu timeline
